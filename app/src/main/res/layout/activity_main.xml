@@ -68,7 +68,6 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toStartOf="@+id/settingsBtn"
         app:layout_constraintStart_toStartOf="parent" />
-    </Button>
 
     <Button
         android:id="@+id/settingsBtn"
