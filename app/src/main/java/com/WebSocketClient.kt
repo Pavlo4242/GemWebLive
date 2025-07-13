@@ -45,10 +45,22 @@ class WebSocketClient(
                 onOpen()
             }
 
-            override fun onMessage(webSocket: WebSocket, text: String) {
+           override fun onMessage(webSocket: WebSocket, text: String) {
                 try {
                     Log.d(TAG, "Received message: ${text.take(200)}...")
-                    onMessage(text) // Forward all messages to handler
+                    val response = JSONObject(text)
+                    
+                    if (response.has("setupComplete")) {
+                        val setupComplete = response.getBoolean("setupComplete")
+                        if (setupComplete) {
+                            isSetupComplete = true
+                            setupTimeoutJob?.cancel()
+                            Log.i(TAG, "Server setup complete.")
+                            onSetupComplete() // Notify MainActivity
+                        }
+                    }
+                    
+                    onMessage(text)
                 } catch (e: Exception) {
                     Log.e(TAG, "Error processing message", e)
                 }
@@ -94,25 +106,29 @@ class WebSocketClient(
         Log.d(TAG, "Sent config: ${config.toString(2)}")
     }
 
-    fun sendAudio(base64Audio: String) {
-        try {
-            val audioBytes = Base64.decode(base64Audio, Base64.NO_WRAP)
-            webSocket?.send(okhttp3.ByteString.of(*audioBytes))
-            Log.d(TAG, "Sent audio chunk (${audioBytes.size} bytes)")
-        } catch (e: Exception) {
-            Log.e(TAG, "Error decoding Base64 audio", e)
+      fun sendAudio(audioData: ByteArray) {
+        if (isReady()) {
+            val realtimeInput = JSONObject().apply {
+                put("realtime_input", JSONObject().apply {
+                    put("audio", JSONObject().apply {
+                        put("data", android.util.Base64.encodeToString(audioData, android.util.Base64.NO_WRAP))
+                        put("mime_type", "audio/pcm;rate=16000")
+                    })
+                })
+            }
+            webSocket?.send(realtimeInput.toString())
         }
     }
 
     fun disconnect() {
+        setupTimeoutJob?.cancel()
         webSocket?.close(1000, "User disconnected")
         webSocket = null
         isSetupComplete = false
     }
 
     fun isConnected(): Boolean = webSocket != null
-    fun isReady(): Boolean = isConnected() && isSetupComplete
-
+    private fun isReady(): Boolean = isConnected() && isSetupComplete
     
     private fun getSystemPrompt(): String {
     // Replace the content here with the full prompt from WorkingAudioD.html
