@@ -32,11 +32,15 @@ jobs:
       with:
         cmdline-tools-version: '8.0'
 
-    - name: Accept licenses
+    - name: Accept Android licenses
       run: |
-        yes | sdkmanager --licenses
-        sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.0
-
+        mkdir -p ~/.android
+        touch ~/.android/repositories.cfg
+        yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
+        $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.0"
+  env:
+    ANDROID_HOME: ${{ env.ANDROID_HOME }}
+    
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
 
