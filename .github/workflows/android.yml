@@ -19,6 +19,11 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
+    - name: Setup Gradle
+      uses: gradle/gradle-build-action@v2
+      with:
+        gradle-version: 8.14.2
+
     - name: Setup Python
       uses: actions/setup-python@v2
       with:
@@ -38,13 +43,9 @@ jobs:
         mkdir -p ~/.android
         touch ~/.android/repositories.cfg
         yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
-        $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.0"
+        $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0"
 
-    - name: Generate gradlew
-      run: ./gradlew wrapper --gradle-version 8.0  # Or your preferred version
-
-    - name: Grant execute permission for gradlew
-      run: chmod +x gradlew
+    
 
     - name: Build APK with Gradle
       run: ./gradlew assembleDebug
