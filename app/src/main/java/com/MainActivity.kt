@@ -13,6 +13,7 @@ import androidx.core.app.ActivityCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.gemweblive.databinding.ActivityMainBinding
 import kotlinx.coroutines.*
+import okhttp3.WebSocket
 import org.json.JSONObject
 
 class MainActivity : AppCompatActivity() {
@@ -113,24 +114,20 @@ class MainActivity : AppCompatActivity() {
                     isConnected = true
                     updateStatus("Awaiting server setup...")
                     updateUI()
-                    Log.d(TAG, "WebSocket opened, sending config...")
                 }
             },
             onMessage = { text ->
                 mainScope.launch {
-                    Log.d(TAG, "Raw message: $text")
                     processServerMessage(text)
                 }
             },
             onClosing = { code, reason ->
                 mainScope.launch {
-                    Log.d(TAG, "WebSocket Closing: $code $reason")
                     teardownSession()
                 }
             },
             onFailure = { t, response ->
                 mainScope.launch {
-                    Log.e(TAG, "WebSocket Failure: ${t.message}", t)
                     showError("Connection failed: ${t.message}")
                     teardownSession()
                 }
@@ -143,74 +140,51 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun processServerMessage(text: String) {
-        Log.d(TAG, "RAW MESSAGE: ${text.take(500)}")
-        
         try {
             val response = JSONObject(text)
-            Log.d(TAG, "PARSED JSON KEYS: ${response.keys().asSequence().toList().joinToString()}")
-
+            
             when {
                 response.has("setupComplete") -> {
                     isServerSetupComplete = response.getBoolean("setupComplete")
-                    Log.i(TAG, "SERVER SETUP COMPLETE: $isServerSetupComplete")
                     updateStatus("Connected. Click 'Start Listening'.")
                     updateUI()
-                    
-                    Log.d(TAG, "SETUP COMPLETE DETAILS: ${response.toString(2)}")
                 }
-
                 response.has("serverContent") -> {
                     val serverContent = response.getJSONObject("serverContent")
-                    Log.d(TAG, "SERVER CONTENT KEYS: ${serverContent.keys().asSequence().toList().joinToString()}")
-                    
                     serverContent.optJSONObject("inputTranscription")?.let { 
-                        Log.d(TAG, "INPUT TRANS: ${it.toString(2)}")
                         it.optString("text")?.let { text ->
                             translationAdapter.addOrUpdateTranslation(text, true)
                         }
                     }
-                    
                     serverContent.optJSONObject("outputTranscription")?.let {
-                        Log.d(TAG, "OUTPUT TRANS: ${it.toString(2)}")
                         it.optString("text")?.let { text ->
                             translationAdapter.addOrUpdateTranslation(text, false)
                         }
                     }
                 }
-                
                 response.has("inputTranscription") -> {
                     val input = response.getJSONObject("inputTranscription")
-                    Log.d(TAG, "STANDALONE INPUT: ${input.toString(2)}")
                     input.optString("text")?.let {
                         translationAdapter.addOrUpdateTranslation(it, true)
                     }
                 }
-
                 response.has("outputTranscription") -> {
                     val output = response.getJSONObject("outputTranscription")
-                    Log.d(TAG, "STANDALONE OUTPUT: ${output.toString(2)}")
                     output.optString("text")?.let {
                         translationAdapter.addOrUpdateTranslation(it, false)
                     }
                 }
-
                 response.has("error") -> {
                     val error = response.getJSONObject("error")
-                    Log.e(TAG, "SERVER ERROR: ${error.toString(2)}")
                     showError("API Error: ${error.getString("message")}")
-                }
-
-                else -> {
-                    Log.w(TAG, "UNHANDLED MESSAGE TYPE. FULL MESSAGE:\n${response.toString(2)}")
                 }
             }
             
             if (response.has("inputTranscription") || response.has("outputTranscription") || response.has("serverContent")) {
                 binding.transcriptLog.scrollToPosition(0)
             }
-
         } catch (e: Exception) {
-            Log.e(TAG, "MESSAGE PARSING ERROR. Original text: $text", e)
+            Log.e(TAG, "Error processing message", e)
         }
     }
 
@@ -285,7 +259,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showError(message: String) {
-        Log.e(TAG, message)
         Toast.makeText(this, message, Toast.LENGTH_LONG).show()
         updateStatus(message)
     }
