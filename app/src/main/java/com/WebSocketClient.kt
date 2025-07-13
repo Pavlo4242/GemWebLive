@@ -9,7 +9,6 @@ import org.json.JSONObject
 import okhttp3.logging.HttpLoggingInterceptor
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.TimeoutException
 
 class WebSocketClient(
     private val model: String,
@@ -22,16 +21,17 @@ class WebSocketClient(
 ) {
     private var webSocket: WebSocket? = null
     private var isSetupComplete = false
+    // Use a dedicated single-thread dispatcher to ensure serial execution of all WebSocket callbacks.
     private val scope = CoroutineScope(Executors.newSingleThreadExecutor().asCoroutineDispatcher())
 
     private val client = OkHttpClient.Builder()
-        .readTimeout(0, TimeUnit.MILLISECONDS)
+        .readTimeout(0, TimeUnit.MILLISECONDS) // Important for long-lived connections
         .addInterceptor(HttpLoggingInterceptor().apply { level = HttpLoggingInterceptor.Level.BODY })
         .build()
 
     companion object {
         private const val HOST = "generativelanguage.googleapis.com"
-        private const val API_KEY = "AIzaSyA-1jVnmef_LnMrM8xIuMKuX103ot_uHI4" // Ensure this is valid
+        private const val API_KEY = "AIzaSyA-1jVnmef_LnMrM8xIuMKuX103ot_uHI4"
         private const val TAG = "WebSocketClient"
     }
 
@@ -44,8 +44,9 @@ class WebSocketClient(
 
         webSocket = client.newWebSocket(request, object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
+                // All callbacks are launched in the dedicated scope.
                 scope.launch {
-                    Log.i(TAG, "WebSocket opened.")
+                    Log.i(TAG, "WebSocket connection opened.")
                     sendConfigMessage()
                     onOpen()
                 }
@@ -53,30 +54,34 @@ class WebSocketClient(
 
             override fun onMessage(webSocket: WebSocket, text: String) {
                 scope.launch {
-                    Log.d(TAG, "Server message received: ${text.take(500)}")
-                    val response = JSONObject(text)
-                    if (response.has("setupComplete") && response.getBoolean("setupComplete")) {
-                        if (!isSetupComplete) {
-                            isSetupComplete = true
-                            Log.i(TAG, "Server setup complete message received!")
-                            onSetupComplete()
+                    Log.d(TAG, "Raw message from server: ${text.take(500)}")
+                    try {
+                        val response = JSONObject(text)
+                        if (response.has("setupComplete") && response.getBoolean("setupComplete")) {
+                            if (!isSetupComplete) {
+                                isSetupComplete = true
+                                Log.i(TAG, ">>> Server Setup Complete! <<<")
+                                onSetupComplete()
+                            }
+                        } else {
+                            onMessage(text)
                         }
-                    } else {
-                        onMessage(text)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to parse server message as JSON", e)
                     }
                 }
             }
 
             override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
                 scope.launch {
-                    Log.i(TAG, "WebSocket closing: $code - $reason")
+                    Log.w(TAG, "WebSocket is closing: $code - $reason")
                     onClosing(code, reason)
                 }
             }
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
                 scope.launch {
-                    Log.e(TAG, "WebSocket failure: ${t.message}", t)
+                    Log.e(TAG, "WebSocket failure", t)
                     onFailure(t, response)
                 }
             }
@@ -97,7 +102,7 @@ class WebSocketClient(
             })
         }
         webSocket?.send(config.toString())
-        Log.d(TAG, "Config message sent.")
+        Log.d(TAG, "Configuration message sent.")
     }
 
     fun sendAudio(audioData: ByteArray) {
@@ -118,7 +123,8 @@ class WebSocketClient(
 
     fun disconnect() {
         scope.launch {
-            webSocket?.close(1000, "User disconnected")
+            Log.w(TAG, "Disconnect called.")
+            webSocket?.close(1000, "User initiated disconnect.")
             webSocket = null
             isSetupComplete = false
         }
@@ -128,6 +134,7 @@ class WebSocketClient(
     fun isReady(): Boolean = isSetupComplete && isConnected()
 
     private fun getSystemPrompt(): String {
+        // System prompt remains the same
         return """
         ### **LLM System Prompt: Bilingual Live Thai-English Interpreter (Pattaya Bar Scene)**
         
