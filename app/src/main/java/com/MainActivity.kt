@@ -23,6 +23,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var translationAdapter: TranslationAdapter
 
     private val mainScope = CoroutineScope(Dispatchers.Main)
+
     private var isListening = false
     private var isConnected = false
     private var isServerSetupComplete = false
@@ -43,9 +44,9 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
-
-        setupUI()
         checkPermissions()
+        setupUI()
+        setupWebSocketClient()
     }
 
     private fun setupUI() {
@@ -57,14 +58,15 @@ class MainActivity : AppCompatActivity() {
             adapter = translationAdapter
         }
 
-        val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, models)
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-        binding.modelSpinner.adapter = adapter
+        binding.modelSpinner.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, models)
         binding.modelSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                selectedModel = models[position]
-                if (isConnected) {
-                    Toast.makeText(this@MainActivity, "Reconnect to apply new model.", Toast.LENGTH_SHORT).show()
+                if (selectedModel != models[position]) {
+                    selectedModel = models[position]
+                    if (isConnected) {
+                        Toast.makeText(this@MainActivity, "Reconnecting to apply new model...", Toast.LENGTH_SHORT).show()
+                        teardownSession(reconnect = true)
+                    }
                 }
             }
             override fun onNothingSelected(parent: AdapterView<*>?) {}
@@ -74,10 +76,41 @@ class MainActivity : AppCompatActivity() {
         binding.settingsBtn.setOnClickListener { handleSettingsDisconnectButton() }
     }
 
+    private fun setupWebSocketClient() {
+        webSocketClient = WebSocketClient(
+            model = selectedModel,
+            vadSilenceMs = getVadSensitivity(),
+            onOpen = {
+                mainScope.launch {
+                    isConnected = true
+                    updateStatus("Awaiting server setup...")
+                    updateUI()
+                }
+            },
+            onMessage = { text ->
+                mainScope.launch { processServerMessage(text) }
+            },
+            onClosing = { _, _ ->
+                mainScope.launch { teardownSession() }
+            },
+            onFailure = { t, _ ->
+                mainScope.launch {
+                    showError("Connection failed: ${t.message}")
+                    teardownSession()
+                }
+            },
+            onSetupComplete = {
+                mainScope.launch {
+                    isServerSetupComplete = true
+                    updateStatus("Connected. Click to start.")
+                    updateUI()
+                }
+            }
+        )
+    }
+
     private fun handleMasterButton() {
         if (!isConnected) {
-            updateStatus("Connecting...")
-            binding.micBtn.isEnabled = false
             connect()
         } else {
             toggleListening()
@@ -94,62 +127,26 @@ class MainActivity : AppCompatActivity() {
 
     private fun showSettingsDialog() {
         val settingsDialog = SettingsDialog(this, getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE))
+        settingsDialog.setOnDismissListener {
+            // Re-setup client if settings changed that affect connection
+            setupWebSocketClient()
+        }
         settingsDialog.show()
     }
-
+    
     private fun getVadSensitivity(): Int {
-        val prefs = getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE)
-        return prefs.getInt("vad_sensitivity_ms", 800)
+        return getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE).getInt("vad_sensitivity_ms", 800)
     }
 
     private fun connect() {
-        isServerSetupComplete = false
-        
-        webSocketClient = WebSocketClient(
-            model = selectedModel,
-            vadSilenceMs = getVadSensitivity(),
-            onOpen = {
-                mainScope.launch {
-                    isConnected = true
-                    updateStatus("Awaiting server setup...")
-                    updateUI()
-                }
-            },
-            onMessage = { text ->
-                mainScope.launch {
-                    processServerMessage(text)
-                }
-            },
-            onClosing = { _, _ ->
-                mainScope.launch {
-                    teardownSession()
-                }
-            },
-            onFailure = { t, _ ->
-                mainScope.launch {
-                    showError("Connection failed: ${t.message}")
-                    teardownSession()
-                }
-            },
-            // Correctly passing the named parameter
-            onSetupComplete = {
-                mainScope.launch {
-                    isServerSetupComplete = true
-                    updateStatus("Connected. Click 'Start Listening'.")
-                    updateUI()
-                }
-            }
-        )
-        
-        mainScope.launch(Dispatchers.IO) {
-            webSocketClient.connect()
-        }
+        updateStatus("Connecting...")
+        updateUI()
+        webSocketClient.connect()
     }
 
     private fun processServerMessage(text: String) {
         try {
             val response = JSONObject(text)
-            
             val serverContent = response.optJSONObject("serverContent")
             if (serverContent != null) {
                 serverContent.optJSONObject("inputTranscription")?.optString("text")?.let {
@@ -159,43 +156,33 @@ class MainActivity : AppCompatActivity() {
                     translationAdapter.addOrUpdateTranslation(it, false)
                 }
             } else {
-                response.optJSONObject("inputTranscription")?.optString("text")?.let {
+                 response.optJSONObject("inputTranscription")?.optString("text")?.let {
                     translationAdapter.addOrUpdateTranslation(it, true)
                 }
                 response.optJSONObject("outputTranscription")?.optString("text")?.let {
                     translationAdapter.addOrUpdateTranslation(it, false)
                 }
             }
-            
             response.optJSONObject("error")?.getString("message")?.let {
                 showError("API Error: $it")
             }
-
             binding.transcriptLog.scrollToPosition(0)
         } catch (e: Exception) {
-            Log.e(TAG, "Error processing message", e)
+            Log.e(TAG, "Error processing server message", e)
         }
     }
 
     private fun toggleListening() {
-        if (!isServerSetupComplete) {
-            Toast.makeText(this, "Please wait for server setup to complete.", Toast.LENGTH_SHORT).show()
-            return
-        }
+        if (!isServerSetupComplete) return
         isListening = !isListening
-        if (isListening) {
-            startAudio()
-        } else {
-            stopAudio()
-        }
+        if (isListening) startAudio() else stopAudio()
         updateUI()
     }
 
     private fun startAudio() {
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
-            // Now correctly passes the ByteArray to the WebSocketClient
             audioHandler = AudioHandler(this) { audioData ->
-                if (isListening && ::webSocketClient.isInitialized && webSocketClient.isConnected()) {
+                if (webSocketClient.isReady()) {
                     webSocketClient.sendAudio(audioData)
                 }
             }
@@ -203,45 +190,49 @@ class MainActivity : AppCompatActivity() {
             updateStatus("Listening...")
         } else {
             isListening = false
-            Toast.makeText(this, "Audio permission not granted.", Toast.LENGTH_SHORT).show()
-            updateUI()
+            checkPermissions()
         }
     }
 
     private fun stopAudio() {
-        if(::audioHandler.isInitialized) {
+        if (::audioHandler.isInitialized) {
             audioHandler.stopRecording()
         }
         updateStatus("Paused.")
     }
 
-    private fun teardownSession() {
+    private fun teardownSession(reconnect: Boolean = false) {
         stopAudio()
-        if (::webSocketClient.isInitialized) {
-            webSocketClient.disconnect()
-        }
+        webSocketClient.disconnect()
         isConnected = false
         isListening = false
         isServerSetupComplete = false
-        updateStatus("Disconnected")
-        updateUI()
+        if (!reconnect) {
+            mainScope.launch {
+                updateStatus("Disconnected")
+                updateUI()
+            }
+        }
+        setupWebSocketClient()
+        if (reconnect) {
+            connect()
+        }
     }
 
     private fun updateUI() {
-        binding.micBtn.isEnabled = true 
+        binding.micBtn.isEnabled = true
+        binding.modelSpinner.isEnabled = !isConnected
 
         if (!isConnected) {
             binding.micBtn.text = "Connect"
             binding.settingsBtn.text = "Settings"
-            binding.modelSpinner.isEnabled = true
         } else {
             binding.settingsBtn.text = "Disconnect"
-            binding.modelSpinner.isEnabled = false
-            if (isServerSetupComplete) {
-                binding.micBtn.text = if (isListening) "Stop" else "Start Listening"
-            } else {
+            if (!isServerSetupComplete) {
                 binding.micBtn.text = "Connecting..."
                 binding.micBtn.isEnabled = false
+            } else {
+                binding.micBtn.text = if (isListening) "Stop" else "Start Listening"
             }
         }
         binding.interimDisplay.visibility = if (isListening) View.VISIBLE else View.GONE
@@ -264,11 +255,9 @@ class MainActivity : AppCompatActivity() {
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == REQUEST_RECORD_AUDIO_PERMISSION) {
-            if (!(grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED)) {
-                Toast.makeText(this, "Permission to record audio is required.", Toast.LENGTH_LONG).show()
-                finish()
-            }
+        if (requestCode == REQUEST_RECORD_AUDIO_PERMISSION && !(grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED)) {
+            Toast.makeText(this, "Audio permission is required for this app to function.", Toast.LENGTH_LONG).show()
+            finish()
         }
     }
 
