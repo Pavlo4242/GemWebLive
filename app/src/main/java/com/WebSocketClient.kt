@@ -71,7 +71,8 @@ class WebSocketClient(
             override fun onMessage(webSocket: WebSocket, bytes: ByteArray) {
                 try {
                     val text = String(bytes, Charsets.UTF_8)
-                    onMessage(webSocket, text)
+                    super.onMessage(webSocket, text) // Call super or handle directly
+                    onMessage(text) // Forward to our callback
                 } catch (e: Exception) {
                     Log.e(TAG, "Error processing binary message", e)
                 }
@@ -90,6 +91,7 @@ class WebSocketClient(
             }
         })
     }
+
 
     fun isConnected(): Boolean {
         return webSocket != null
