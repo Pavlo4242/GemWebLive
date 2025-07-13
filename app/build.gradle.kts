@@ -36,8 +36,13 @@ android {
         jvmTarget = "17"
     }
     buildFeatures {
+        // We are enabling compose AND viewBinding, as your project uses both.
         compose = true
         viewBinding = true
+    }
+    composeOptions {
+        // This version is compatible with Kotlin 1.9.22
+        kotlinCompilerExtensionVersion = "1.5.8"
     }
     packaging {
         resources {
@@ -47,17 +52,17 @@ android {
 }
 
 dependencies {
-    // Core and UI Libraries
+    // Core & UI
     implementation("androidx.core:core-ktx:1.12.0")
-    implementation("androidx.appcompat:appcompat:1.6.1") // Added for base theme support
+    implementation("androidx.appcompat:appcompat:1.6.1")
+    implementation("com.google.android.material:material:1.11.0")
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
-    implementation("com.google.android.material:material:1.11.0") // Added for material components
 
     // Lifecycle
-    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.6.2")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
     implementation("androidx.activity:activity-compose:1.8.2")
 
-    // Compose - Using a BOM compatible with Kotlin 1.9.22
+    // Compose - Using a BOM compatible with the specified compiler
     implementation(platform("androidx.compose:compose-bom:2024.02.02"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
