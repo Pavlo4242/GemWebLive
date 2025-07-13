@@ -13,7 +13,6 @@ import androidx.core.app.ActivityCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.gemweblive.databinding.ActivityMainBinding
 import kotlinx.coroutines.*
-import okhttp3.WebSocket
 import org.json.JSONObject
 
 class MainActivity : AppCompatActivity() {
@@ -113,6 +112,7 @@ class MainActivity : AppCompatActivity() {
                 mainScope.launch {
                     isConnected = true
                     updateStatus("Awaiting server setup...")
+                    updateUI()
                 }
             },
             onMessage = { text ->
@@ -131,6 +131,7 @@ class MainActivity : AppCompatActivity() {
                     teardownSession()
                 }
             },
+            // Correctly passing the named parameter
             onSetupComplete = {
                 mainScope.launch {
                     isServerSetupComplete = true
@@ -149,41 +150,28 @@ class MainActivity : AppCompatActivity() {
         try {
             val response = JSONObject(text)
             
-            when {
-                response.has("serverContent") -> {
-                    val serverContent = response.getJSONObject("serverContent")
-                    serverContent.optJSONObject("inputTranscription")?.let { 
-                        it.optString("text")?.let { text ->
-                            translationAdapter.addOrUpdateTranslation(text, true)
-                        }
-                    }
-                    serverContent.optJSONObject("outputTranscription")?.let {
-                        it.optString("text")?.let { text ->
-                            translationAdapter.addOrUpdateTranslation(text, false)
-                        }
-                    }
+            val serverContent = response.optJSONObject("serverContent")
+            if (serverContent != null) {
+                serverContent.optJSONObject("inputTranscription")?.optString("text")?.let {
+                    translationAdapter.addOrUpdateTranslation(it, true)
                 }
-                response.has("inputTranscription") -> {
-                    val input = response.getJSONObject("inputTranscription")
-                    input.optString("text")?.let {
-                        translationAdapter.addOrUpdateTranslation(it, true)
-                    }
+                serverContent.optJSONObject("outputTranscription")?.optString("text")?.let {
+                    translationAdapter.addOrUpdateTranslation(it, false)
                 }
-                response.has("outputTranscription") -> {
-                    val output = response.getJSONObject("outputTranscription")
-                    output.optString("text")?.let {
-                        translationAdapter.addOrUpdateTranslation(it, false)
-                    }
+            } else {
+                response.optJSONObject("inputTranscription")?.optString("text")?.let {
+                    translationAdapter.addOrUpdateTranslation(it, true)
                 }
-                response.has("error") -> {
-                    val error = response.getJSONObject("error")
-                    showError("API Error: ${error.getString("message")}")
+                response.optJSONObject("outputTranscription")?.optString("text")?.let {
+                    translationAdapter.addOrUpdateTranslation(it, false)
                 }
             }
             
-            if (response.has("inputTranscription") || response.has("outputTranscription") || response.has("serverContent")) {
-                binding.transcriptLog.scrollToPosition(0)
+            response.optJSONObject("error")?.getString("message")?.let {
+                showError("API Error: $it")
             }
+
+            binding.transcriptLog.scrollToPosition(0)
         } catch (e: Exception) {
             Log.e(TAG, "Error processing message", e)
         }
@@ -191,7 +179,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun toggleListening() {
         if (!isServerSetupComplete) {
-            Toast.makeText(this, "Please wait for the server to be ready.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Please wait for server setup to complete.", Toast.LENGTH_SHORT).show()
             return
         }
         isListening = !isListening
@@ -205,9 +193,10 @@ class MainActivity : AppCompatActivity() {
 
     private fun startAudio() {
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+            // Now correctly passes the ByteArray to the WebSocketClient
             audioHandler = AudioHandler(this) { audioData ->
                 if (isListening && ::webSocketClient.isInitialized && webSocketClient.isConnected()) {
-                    webSocketClient.sendAudio(audioData.toByteArray())
+                    webSocketClient.sendAudio(audioData)
                 }
             }
             audioHandler.startRecording()
@@ -215,6 +204,7 @@ class MainActivity : AppCompatActivity() {
         } else {
             isListening = false
             Toast.makeText(this, "Audio permission not granted.", Toast.LENGTH_SHORT).show()
+            updateUI()
         }
     }
 
@@ -238,23 +228,23 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateUI() {
-        binding.micBtn.isEnabled = isConnected
+        binding.micBtn.isEnabled = true 
 
         if (!isConnected) {
             binding.micBtn.text = "Connect"
             binding.settingsBtn.text = "Settings"
-            binding.interimDisplay.visibility = View.GONE
             binding.modelSpinner.isEnabled = true
         } else {
-            binding.modelSpinner.isEnabled = false
             binding.settingsBtn.text = "Disconnect"
+            binding.modelSpinner.isEnabled = false
             if (isServerSetupComplete) {
                 binding.micBtn.text = if (isListening) "Stop" else "Start Listening"
             } else {
                 binding.micBtn.text = "Connecting..."
+                binding.micBtn.isEnabled = false
             }
-            binding.interimDisplay.visibility = if (isListening) View.VISIBLE else View.GONE
         }
+        binding.interimDisplay.visibility = if (isListening) View.VISIBLE else View.GONE
     }
 
     private fun updateStatus(message: String) {
@@ -263,7 +253,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun showError(message: String) {
         Toast.makeText(this, message, Toast.LENGTH_LONG).show()
-        updateStatus(message)
+        updateStatus("Error: $message")
     }
 
     private fun checkPermissions() {
@@ -276,7 +266,7 @@ class MainActivity : AppCompatActivity() {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == REQUEST_RECORD_AUDIO_PERMISSION) {
             if (!(grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED)) {
-                Toast.makeText(this, "Permission to record audio is required for this app to function.", Toast.LENGTH_LONG).show()
+                Toast.makeText(this, "Permission to record audio is required.", Toast.LENGTH_LONG).show()
                 finish()
             }
         }
