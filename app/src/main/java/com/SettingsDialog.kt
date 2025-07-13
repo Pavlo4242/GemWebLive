@@ -6,7 +6,7 @@ import android.content.SharedPreferences
 import android.os.Bundle
 import android.widget.SeekBar
 import com.gemweblive.databinding.DialogSettingsBinding
-import com.example.gemweblive.databinding.DialogSettingsBinding
+import com.gemweblive.databinding.DialogSettingsBinding
 
 class SettingsDialog(context: Context, private val prefs: SharedPreferences) : Dialog(context) {
 
