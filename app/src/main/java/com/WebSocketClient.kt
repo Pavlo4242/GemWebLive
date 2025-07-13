@@ -8,6 +8,7 @@ import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import org.json.JSONArray
 import org.json.JSONObject
+import okhttp3.logging.HttpLoggingInterceptor
 
 class WebSocketClient(
     private val model: String,
@@ -19,8 +20,11 @@ class WebSocketClient(
 ) {
 
     private var webSocket: WebSocket? = null
-    private val client = OkHttpClient()
-
+    private val client = OkHttpClient.Builder() // <-- Change this line
+    .addInterceptor(HttpLoggingInterceptor().apply {
+        level = HttpLoggingInterceptor.Level.BODY
+    })
+    .build()
     companion object {
         private const val HOST = "generativelanguage.googleapis.com"
         private const val API_KEY = "AIzaSyA-1jVnmef_LnMrM8xIuMKuX103ot_uHI4" // IMPORTANT: Replace with your actual API key
