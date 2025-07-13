@@ -2,11 +2,8 @@ package com.gemweblive
 
 import android.util.Log
 import kotlinx.coroutines.*
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.Response
+import okhttp3.*
 import okhttp3.WebSocket
-import okhttp3.WebSocketListener
 import org.json.JSONArray
 import org.json.JSONObject
 import okhttp3.logging.HttpLoggingInterceptor
@@ -61,7 +58,7 @@ class WebSocketClient(
 
             override fun onMessage(webSocket: WebSocket, text: String) {
                 try {
-                    Log.d(TAG, "Received message: ${text.take(200)}...") // Log first 200 chars
+                    Log.d(TAG, "Received message: ${text.take(200)}...")
                     val response = JSONObject(text)
                     
                     if (response.has("setupComplete")) {
@@ -69,12 +66,11 @@ class WebSocketClient(
                         setupTimeoutJob?.cancel()
                         Log.i(TAG, "Server setup complete: $isSetupComplete")
                         if (isSetupComplete) {
-                            onMessage(text) // Forward setup complete message
+                            onMessage(text)
                         }
                         return
                     }
                     
-                    // Forward all other messages
                     onMessage(text)
                 } catch (e: Exception) {
                     Log.e(TAG, "Error processing message", e)
@@ -136,6 +132,7 @@ class WebSocketClient(
 
     fun isConnected(): Boolean = webSocket != null
     fun isReady(): Boolean = isConnected() && isSetupComplete
+
 
     
     private fun getSystemPrompt(): String {
