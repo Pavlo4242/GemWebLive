@@ -144,33 +144,37 @@ class MainActivity : AppCompatActivity() {
         webSocketClient.connect()
     }
 
-    private fun processServerMessage(text: String) {
-        try {
-            val json = JSONObject(text)
-            when {
-                json.has("serverContent") -> {
-                    val content = json.getJSONObject("serverContent")
-                    content.optJSONArray("parts")?.let { parts ->
-                        val textContent = parts.joinToString("\n") { part ->
-                            part.optString("text", "")
-                        }
-                        if (textContent.isNotEmpty()) {
-                            translationAdapter.addOrUpdateTranslation(textContent, false)
+private fun processServerMessage(text: String) {
+    try {
+        val json = JSONObject(text)
+        when {
+            json.has("serverContent") -> {
+                val content = json.getJSONObject("serverContent")
+                content.optJSONArray("parts")?.let { parts ->
+                    val textContent = StringBuilder()
+                    for (i in 0 until parts.length()) {
+                        val part = parts.getJSONObject(i)
+                        part.optString("text")?.takeIf { it.isNotEmpty() }?.let {
+                            if (textContent.isNotEmpty()) textContent.append("\n")
+                            textContent.append(it)
                         }
                     }
-                }
-                json.has("inputTranscription") -> {
-                    val transcription = json.getJSONObject("inputTranscription")
-                    transcription.optString("text")?.let {
-                        translationAdapter.addOrUpdateTranslation(it, true)
+                    if (textContent.isNotEmpty()) {
+                        translationAdapter.addOrUpdateTranslation(textContent.toString(), false)
                     }
                 }
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error processing server message", e)
+            json.has("inputTranscription") -> {
+                val transcription = json.getJSONObject("inputTranscription")
+                transcription.optString("text")?.let {
+                    translationAdapter.addOrUpdateTranslation(it, true)
+                }
+            }
         }
+    } catch (e: Exception) {
+        Log.e(TAG, "Error processing server message", e)
     }
-
+}
     private fun toggleListening() {
         if (!isServerReady) return
         isListening = !isListening
