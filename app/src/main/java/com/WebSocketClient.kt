@@ -2,10 +2,10 @@ package com.gemweblive
 
 import android.util.Base64
 import android.util.Log
+import com.google.gson.Gson
+import com.google.gson.GsonBuilder
 import kotlinx.coroutines.*
 import okhttp3.*
-import org.json.JSONArray
-import org.json.JSONObject
 import okhttp3.logging.HttpLoggingInterceptor
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -23,36 +23,47 @@ class WebSocketClient(
     @Volatile private var isSetupComplete = false
     @Volatile private var isConnected = false
 
-    // A dedicated single-thread dispatcher ensures all WebSocket events are processed serially off the main thread.
     private val scope = CoroutineScope(Executors.newSingleThreadExecutor().asCoroutineDispatcher())
+    private val gson: Gson = GsonBuilder()
+        .disableHtmlEscaping()
+        .setPrettyPrinting()
+        .create()
 
     private val client = OkHttpClient.Builder()
-        .readTimeout(0, TimeUnit.MILLISECONDS) // Essential for persistent WebSockets
-        .addInterceptor(HttpLoggingInterceptor().apply { level = HttpLoggingInterceptor.Level.BODY })
+        .readTimeout(0, TimeUnit.MILLISECONDS)
+        .addInterceptor(HttpLoggingInterceptor().apply { 
+            level = HttpLoggingInterceptor.Level.BODY 
+        })
         .build()
 
     companion object {
         private const val HOST = "generativelanguage.googleapis.com"
-        private const val API_KEY = "AIzaSyA-1jVnmef_LnMrM8xIuMKuX103ot_uHI4" // Replace with your actual key
+        private const val API_KEY = "AIzaSyA-1jVnmef_LnMrM8xIuMKuX103ot_uHI4"
         private const val TAG = "WebSocketClient"
     }
 
     private fun sendConfigMessage() {
-        val config = JSONObject().apply {
-            put("setup", JSONObject().apply {
-                put("model", "models/$model")
-                put("generation_config", JSONObject().apply {
-                    put("response_modalities", JSONArray().put("AUDIO"))
-                })
-                put("input_audio_transcription", JSONObject())
-                put("output_audio_transcription", JSONObject())
-                put("system_instruction", JSONObject().put("parts", JSONArray().put(JSONObject().put("text", getSystemPrompt()))))
-                put("realtime_input_config", JSONObject().put("automatic_activity_detection", JSONObject().put("silence_duration_ms", vadSilenceMs)))
-            })
-        }
-        val configString = config.toString().replace("\\/", "/") // Undo escaping
-        webSocket?.send(configString)
-        Log.i(TAG, ">>> CORRECTED CONFIGURATION SENT:\n${JSONObject(configString).toString(2)}")
+        val config = mapOf(
+            "setup" to mapOf(
+                "model" to "models/$model",
+                "generation_config" to mapOf(
+                    "response_modalities" to listOf("AUDIO")
+                ),
+                "input_audio_transcription" to emptyMap<String, Any>(),
+                "output_audio_transcription" to emptyMap<String, Any>(),
+                "system_instruction" to mapOf(
+                    "parts" to listOf(
+                        mapOf("text" to getSystemPrompt())
+                    )
+                ),
+                "realtime_input_config" to mapOf(
+                    "automatic_activity_detection" to mapOf(
+                        "silence_duration_ms" to vadSilenceMs
+                    )
+                )
+            )
+        )
+        webSocket?.send(gson.toJson(config))
     }
 
     fun connect() {
@@ -77,8 +88,8 @@ class WebSocketClient(
                 scope.launch {
                     Log.i(TAG, "Server message: ${text.take(500)}")
                     try {
-                        val response = JSONObject(text)
-                        if (response.has("setupComplete") && response.getBoolean("setupComplete")) {
+                        val response = gson.fromJson(text, Map::class.java)
+                        if (response["setupComplete"] == true) {
                             if (!isSetupComplete) {
                                 isSetupComplete = true
                                 Log.i(TAG, ">>> Server setup is complete! <<<")
@@ -114,15 +125,15 @@ class WebSocketClient(
     fun sendAudio(audioData: ByteArray) {
         if (!isReady()) return
         scope.launch {
-            val realtimeInput = JSONObject().apply {
-                put("realtime_input", JSONObject().apply {
-                    put("audio", JSONObject().apply {
-                        put("data", Base64.encodeToString(audioData, Base64.NO_WRAP))
-                        put("mime_type", "audio/pcm;rate=16000")
-                    })
-                })
-            }
-            webSocket?.send(realtimeInput.toString())
+            val realtimeInput = mapOf(
+                "realtime_input" to mapOf(
+                    "audio" to mapOf(
+                        "data" to Base64.encodeToString(audioData, Base64.NO_WRAP),
+                        "mime_type" to "audio/pcm;rate=16000"
+                    )
+                )
+            )
+            webSocket?.send(gson.toJson(realtimeInput))
         }
     }
     
