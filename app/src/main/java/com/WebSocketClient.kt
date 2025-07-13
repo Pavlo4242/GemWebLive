@@ -96,7 +96,7 @@ class WebSocketClient(
     private fun sendConfigMessage() {
         val config = JSONObject().apply {
             put("setup", JSONObject().apply {
-                put("model", "models/" +$model")
+                put("model", "models/$model")
                 
                 put("generation_config", JSONObject().apply {
                     put("response_modalities", JSONArray().put("AUDIO"))
