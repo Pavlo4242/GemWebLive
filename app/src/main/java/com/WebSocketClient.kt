@@ -39,7 +39,7 @@ class WebSocketClient(
 
     fun connect() {
         if (isConnected) return
-        Log.d(TAG, "Attempting to connect...")
+        Log.i(TAG, "Attempting to connect...")
 
         val request = Request.Builder()
             .url("wss://$HOST/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=$API_KEY")
@@ -57,7 +57,7 @@ class WebSocketClient(
 
             override fun onMessage(webSocket: WebSocket, text: String) {
                 scope.launch {
-                    Log.d(TAG, "Server message: ${text.take(500)}")
+                    Log.i(TAG, "Server message: ${text.take(500)}")
                     try {
                         val response = JSONObject(text)
                         if (response.has("setupComplete") && response.getBoolean("setupComplete")) {
@@ -107,7 +107,7 @@ class WebSocketClient(
             })
         }
         webSocket?.send(config.toString())
-        Log.d(TAG, "Configuration message has been sent.")
+        Log.i(TAG, "Configuration message has been sent.")
     }
 
     fun sendAudio(audioData: ByteArray) {
