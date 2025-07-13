@@ -12,7 +12,6 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.gemweblive.databinding.ActivityMainBinding
-import com.gemweblive.databinding.ActivityMainBinding
 import kotlinx.coroutines.*
 import org.json.JSONObject
 
