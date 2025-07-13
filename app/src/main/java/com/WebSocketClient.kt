@@ -71,8 +71,7 @@ class WebSocketClient(
             override fun onMessage(webSocket: WebSocket, bytes: ByteArray) {
                 try {
                     val text = String(bytes, Charsets.UTF_8)
-                    super.onMessage(webSocket, text) // Call super or handle directly
-                    onMessage(text) // Forward to our callback
+                    onMessage(text)
                 } catch (e: Exception) {
                     Log.e(TAG, "Error processing binary message", e)
                 }
@@ -91,7 +90,6 @@ class WebSocketClient(
             }
         })
     }
-
 
     fun isConnected(): Boolean {
         return webSocket != null
@@ -151,7 +149,7 @@ class WebSocketClient(
     fun isReady(): Boolean {
         return isConnected() && isSetupComplete
     }
-
+    
 private fun getSystemPrompt(): String {
     // Replace the content here with the full prompt from WorkingAudioD.html
     return """|### **LLM System Prompt: Bilingual Live Thai-English Interpreter (Pattaya Bar Scene)**
