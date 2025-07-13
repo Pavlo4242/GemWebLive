@@ -19,15 +19,10 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
-    - name: Setup Gradle
+    # This single step replaces the 'Setup Gradle' and 'Initialize Gradle Wrapper' steps
+    # and adds caching for you automatically.
+    - name: Setup Gradle and Cache
       uses: gradle/actions/setup-gradle@v3
-      with:
-        gradle-version: 8.6
-
-    - name: Initialize Gradle Wrapper
-      run: |
-        gradle wrapper --gradle-version 8.6
-        chmod +x gradlew
 
     - name: Setup Python
       uses: actions/setup-python@v5
