@@ -144,36 +144,65 @@ private fun processServerMessage(text: String) {
     Log.d(TAG, "Received: $text")
     try {
         val response = JSONObject(text)
+
+        // Handles each possible top-level key individually for robustness
         when {
+            // Case 1: The server confirms the session is set up.
             response.has("setupComplete") -> {
-                // This is the green light from the server!
                 isServerSetupComplete = true
                 updateStatus("Connected. Click 'Start Listening'.")
                 updateUI()
+                Log.i(TAG, "Server setup is complete.")
             }
+
+            // Case 2: The server sends a block of content, which might include various parts.
             response.has("serverContent") -> {
                 val serverContent = response.getJSONObject("serverContent")
-                val inputTranscription = serverContent.optJSONObject("inputTranscription")?.optString("text")
-                val outputTranscription = serverContent.optJSONObject("outputTranscription")?.optString("text")
-
-                inputTranscription?.let {
+                // Check for nested transcriptions, as they can still appear here
+                serverContent.optJSONObject("inputTranscription")?.optString("text")?.let {
                     translationAdapter.addOrUpdateTranslation(it, true)
                 }
-                outputTranscription?.let {
+                serverContent.optJSONObject("outputTranscription")?.optString("text")?.let {
                     translationAdapter.addOrUpdateTranslation(it, false)
                 }
-                 binding.transcriptLog.scrollToPosition(0)
+                 // Future logic to handle other serverContent parts (like audio) would go here.
             }
-             response.has("error") -> {
+            
+            // Case 3: The server sends a standalone input transcription.
+            response.has("inputTranscription") -> {
+                response.getJSONObject("inputTranscription").optString("text")?.let {
+                    translationAdapter.addOrUpdateTranslation(it, true)
+                }
+            }
+
+            // Case 4: The server sends a standalone output transcription.
+            response.has("outputTranscription") -> {
+                 response.getJSONObject("outputTranscription").optString("text")?.let {
+                    translationAdapter.addOrUpdateTranslation(it, false)
+                }
+            }
+
+            // Case 5: The server reports an error.
+            response.has("error") -> {
                 val error = response.getJSONObject("error").getString("message")
                 showError("API Error: $error")
             }
+
+            // Case 6: Handle other valid but currently unused message types gracefully.
+            response.has("usageMetadata") || response.has("toolCall") || response.has("goAway") -> {
+                 Log.d(TAG, "Received unhandled message type: ${response.keys().next()}")
+            }
         }
+        
+        // After processing any message that updates the UI, scroll to the latest entry.
+        if (response.has("inputTranscription") || response.has("outputTranscription") || response.has("serverContent")) {
+             binding.transcriptLog.scrollToPosition(0)
+        }
+
     } catch (e: Exception) {
         Log.e(TAG, "Error parsing server message", e)
     }
 }
-
     private fun toggleListening() {
         isListening = !isListening
         if (isListening) {
