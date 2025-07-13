@@ -107,7 +107,8 @@ class WebSocketClient(
             })
         }
         webSocket?.send(config.toString())
-        Log.i(TAG, "Configuration message has been sent.")
+        Log.i(TAG, ">>> CONFIGURATION SENT:\n${config.toString(2)}")
+
     }
 
     fun sendAudio(audioData: ByteArray) {
