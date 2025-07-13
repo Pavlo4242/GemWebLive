@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Live AI Translator (Client-Server)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sarabun:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-color: #111827;
+      --text-color: #f3f4f6;
+      --primary-color: #4f46e5;
+      --primary-hover: #4338ca;
+      --secondary-color: #374151;
+      --border-color: #4b5563;
+      --thai-font: 'Sarabun', sans-serif;
+      --english-font: 'Inter', sans-serif;
+    }
+    body {
+      font-family: var(--english-font);
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      margin: 0;
+      overscroll-behavior-y: contain;
+    }
+    .thai-text { font-family: var(--thai-font); }
+    .btn {
+      background-color: var(--primary-color);
+      color: white;
+      font-weight: 600;
+      padding: 0.5rem 1rem;
+      border-radius: 0.375rem;
+      transition: all 0.2s ease;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      border: none;
+      cursor: pointer;
+      white-space: nowrap; /* Prevent button text from wrapping */
+    }
+    .btn:hover:not(:disabled) {
+      background-color: var(--primary-hover);
+      transform: translateY(-1px);
+    }
+    .btn:disabled {
+      background-color: var(--secondary-color);
+      cursor: not-allowed;
+      opacity: 0.7;
+    }
+    .custom-scrollbar::-webkit-scrollbar { width: 8px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: var(--border-color);
+      border-radius: 10px;
+    }
+    /* NEW: Responsive font size for transcription text */
+    .responsive-text {
+        /* font-size will be between 1rem and 1.25rem, based on viewport width */
+        font-size: clamp(1rem, 4vw, 1.25rem);
+        line-height: 1.5; /* Improve readability */
+    }
+    @keyframes pulsate {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+    .pulsating-dot {
+      height: 10px;
+      width: 10px;
+      background-color: #22c55e;
+      border-radius: 50%;
+      display: inline-block;
+      animation: pulsate 1.5s infinite;
+    }
+    .listening-glow {
+      box-shadow: 0 0 10px rgba(79, 70, 229, 0.7);
+      transition: box-shadow 0.3s ease;
+    }
+    @media (max-width: 640px) {
+      .header-buttons .btn {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.875rem;
+      }
+    }
+  </style>
+</head>
+<body class="p-2 sm:p-4 flex flex-col h-screen">
+  <main id="app-screen" class="flex-1 flex flex-col overflow-hidden">
+    <header class="flex-shrink-0 pb-2 flex items-center justify-end gap-3 border-b border-gray-700">
+      <!-- REMOVED the language toggle switch -->
+      <div class="flex items-center gap-2 header-buttons">
+         <button id="settings-btn" class="btn text-sm bg-gray-600 hover:bg-gray-700">Settings</button>
+		<button id="mic-btn" class="btn text-sm">
+          <span id="mic-btn-text">Connect</span>
+        </button>
+      </div>
+    </header>
+	<!-- ================== SETTINGS PANEL (Initially Hidden) ================== -->
+    <div id="settings-panel" class="hidden absolute top-0 left-0 w-full h-full bg-gray-900/80 p-4 sm:p-8 flex items-center justify-center z-50">
+      <div class="bg-gray-800 p-6 rounded-lg shadow-2xl w-full max-w-md text-left">
+        <h2 class="text-2xl font-bold mb-4">Translator Settings</h2>
+        
+        <div class="mb-4">
+          <label for="voice-select" class="block text-sm font-medium text-gray-300 mb-1">Translation Voice</label>
+          <select id="voice-select" class="w-full p-2 rounded bg-gray-700 border border-gray-600 text-white">
+            <option value="en-US-Standard-F">English Female (Standard F)</option>
+            <option value="en-US-Standard-J">English Male (Standard J)</option>
+            <option value="th-TH-Standard-A">Thai Female (Standard A)</option>
+          </select>
+        </div>
+
+        <div class="mb-6">
+          <label class="block text-sm font-medium text-gray-300 mb-1">End of Speech Sensitivity</label>
+           <div class="flex items-center justify-between text-xs text-gray-400">
+             <span>Less Sensitive</span>
+             <span>More Sensitive</span>
+           </div>
+          <input id="vad-sensitivity" type="range" min="200" max="2000" value="800" class="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer">
+          <p class="text-xs text-gray-500 mt-1">How long to wait for silence before translating (in ms).</p>
+        </div>
+
+        <div class="flex justify-end">
+          <button id="save-settings-btn" class="btn">Save and Close</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="transcript-log" class="flex-1 my-2 overflow-y-auto custom-scrollbar pr-2">
+      <div class="text-center text-gray-500 mt-8">Translation output will appear here...</div>
+    </div>
+    <div id="interim-display" class="hidden flex-shrink-0 p-3 border-t border-gray-700 bg-gray-800/50 rounded-t-lg">
+      <div class="flex items-center gap-3">
+        <span class="pulsating-dot"></span>
+        <p class="text-xl text-gray-300 flex-1">Listening...</p>
+      </div>
+    </div>
+    <footer class="flex-shrink-0 pt-1 text-center">
+      <p id="status-text" class="text-gray-400 text-sm">Status: Disconnected</p>
+    </footer>
+  </main>
+  
+  
+<script>
+//================== AUDIO OUTPUT MANAGER ==================
+class LiveAudioOutputManager {
+    constructor() {
+        this.audioContext = null;
+        this.workletNode = null;
+        this.initialized = false;
+        this.sampleRate = 24000;
+        this.initializeAudioContext();
+    }
+    async playAudioChunk(base64AudioChunk) {
+        try {
+            if (!this.initialized) {
+                await this.initializeAudioContext();
+            }
+            if (this.audioContext.state === "suspended") {
+                await this.audioContext.resume();
+            }
+            const arrayBuffer = this._base64ToArrayBuffer(base64AudioChunk);
+            const float32Data = this._convertPCM16LEToFloat32(arrayBuffer);
+            this.workletNode.port.postMessage(float32Data);
+        } catch (error) {
+            console.error("Error processing audio chunk:", error);
+        }
+    }
+    async initializeAudioContext() {
+        if (this.initialized) return;
+        console.log("Initializing Audio Context for output...");
+        this.audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: this.sampleRate });
+        try {
+            // A local pcm-processor.js file is needed for this to work.
+            // Create a file named 'pcm-processor.js' with the following content:
+            // class PcmProcessor extends AudioWorkletProcessor { process(inputs, outputs) { const input = inputs[0]; const output = outputs[0]; for (let channel = 0; channel < output.length; channel++) { output[channel].set(input[channel]); } return true; } } registerProcessor('pcm-processor', PcmProcessor);
+            await this.audioContext.audioWorklet.addModule("pcm-processor.js");
+        } catch(e) {
+            console.error("Fatal Error: Could not load 'pcm-processor.js'. Please run this from a local web server.", e);
+            showError("Error: pcm-processor.js not found. Run from a local server.");
+            return;
+        }
+        this.workletNode = new AudioWorkletNode(this.audioContext, "pcm-processor");
+        this.workletNode.connect(this.audioContext.destination);
+        this.initialized = true;
+        console.log("Audio Context for output is initialized.");
+    }
+    _base64ToArrayBuffer(base64) {
+        const binaryString = window.atob(base64);
+        const len = binaryString.length;
+        const bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+        }
+        return bytes.buffer;
+    }
+    _convertPCM16LEToFloat32(pcmData) {
+        const inputArray = new Int16Array(pcmData);
+        const float32Array = new Float32Array(inputArray.length);
+        for (let i = 0; i < inputArray.length; i++) {
+            float32Array[i] = inputArray[i] / 32768;
+        }
+        return float32Array;
+    }
+}
+
+//================== GLOBAL STATE & CONFIGURATION ==================
+const dom = {
+  micBtn: document.getElementById('mic-btn'),
+  micBtnText: document.getElementById('mic-btn-text'),
+  statusText: document.getElementById('status-text'),
+  interimDisplay: document.getElementById('interim-display'),
+  transcriptLog: document.getElementById('transcript-log'),
+  settingsPanel: document.getElementById('settings-panel'),
+  settingsBtn: document.getElementById('settings-btn'),
+  saveSettingsBtn: document.getElementById('save-settings-btn'),
+  voiceSelect: document.getElementById('voice-select'),
+  vadSlider: document.getElementById('vad-sensitivity')
+};
+
+const HOST = 'generativelanguage.googleapis.com';
+//gemini-2.5-flash-preview-native-audio-dialog
+//gemini-2.0-flash-live-001 <-- no system prompt
+//gemini-2.5-flash-exp-native-audio-thinking-dialog <-- No Systme prompt
+//gemini-2.0-flash-live-001
+//gemini-live-2.5-flash-preview
+//gemini-2.0-flash-001
+//a//gemini-2.5-flash-preview-05-20
+//a///gemini-2.5-flash-exp-native-audio-thinking-dialog
+
+const MODEL = 'gemini-2.5-flash-preview-native-audio-dialog';
+const TARGET_SAMPLE_RATE = 16000;
+
+const audioOutputManager = new LiveAudioOutputManager();
+
+let state = {
+  ws: null,
+  audioContext: null,
+  mediaStream: null,
+  processor: null,
+  isListening: false,
+  isSetupComplete: false,
+  apiKey: "AIzaSyA-1jVnmef_LnMrM8xIuMKuX103ot_uHI4",
+  settings: {
+   voice: "en-US-Standard-F",
+   vadSilenceMs: 800
+  },
+   userInputBuffer: '',       // Buffer for what the user is saying
+  modelTranslationBuffer: '',// Buffer for the model's translation
+  lastSpeaker: null          // Tracks who spoke last ('user' or 'model')
+};
+
+//================== WEBSOCKET & PROTOCOL LOGIC ==================
+// This section remains unchanged as the core logic is correct.
+function connectWebSocket() {
+  const wsURL = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${state.apiKey}`
+  try {
+    state.ws = new WebSocket(wsURL);
+  } catch (error) {
+      showError(`Failed to create WebSocket: ${error.message}`);
+      updateUI();
+      return;
+  }
+  state.ws.onopen = () => {
+    const configMessage = {
+      setup: {
+        model: "models/" + MODEL,
+        generation_config: { response_modalities: ["AUDIO"], },
+        input_audio_transcription: {},
+        output_audio_transcription: {},
+        system_instruction: { 
+  parts: [{ 
+    text: `### **LLM System Prompt: Bilingual Live Thai-English Interpreter (Pattaya Bar Scene)**
+
+**1. ROLE AND OBJECTIVE**
+
+You are an expert, bilingual, real-time, Thai-English cultural and linguistic interpreter. Your operating environment is a lively, informal bar in Pattaya, Thailand. Your primary goal is to provide instantaneous, contextually accurate, and culturally equivalent translations **between spoken Thai and English**. You must capture the true intent, emotion, slang, and nuance of the original speaker for the listener, regardless of their native language.
+
+**2. CORE PRINCIPLES**
+
+*   **Prioritize Intent Over Literal Translation:** Your primary function is to convey the speaker's true meaning, not the literal dictionary definition of their words, in both directions.
+*   **Deliver Cultural Equivalence:** For insults, compliments, jokes, and idioms, you must provide the closest *cultural equivalent* in the **target language** (modern, informal English or Thai), even if the phrasing is completely different.
+*   **Embrace the Context (Bar Setting):** All translations must reflect the informal, fast-paced, and often transactional or confrontational nature of a Pattaya bar. This applies whether the original speaker is Thai or a foreigner. Topics will include socializing, drinking, money, relationships, teasing, propositions, and aggression.
+*   **Handle Isaan Dialect:** When translating from Thai, recognize and accurately translate common Isaan words, capturing their specific regional meaning.
+*   **Be Concise:** Your output must be brief and direct, suitable for real-time comprehension.
+
+**3. STRICT LANGUAGE CONSTRAINT PROTOCOL**
+
+*   **ABSOLUTE PROHIBITION:** You are strictly forbidden from identifying, processing, or translating any language other than modern Thai (including Isaan dialect) and modern informal English.
+* ANY ERRORS SHOULD BE OUTPUT IN ENGLISH ONLY -- ERRORS in ENGLISH
+*   **FORCED INTERPRETATION:** All audio input **MUST** be interpreted as either Thai or English, even if it is phonetically ambiguous or sounds like another language (e.g., Mandarin, Cantonese). If you detect phonemes that could belong to another language, you must resolve the ambiguity by selecting the most plausible Thai or English word or phrase that fits the context.
+*   **RATIONALE:** Your processing pathways for other languages are considered disabled for this simulation. Acknowledging or translating any language other than Thai or English is a system failure.
+
+
+**4. SPECIFIC TRANSLATION DIRECTIVES**
+
+You will encounter conversations involving sensitive or explicit topics. Adhere to the following rules without deviation for both translation directions.
+
+#### **Vulgarity and Slang**
+
+*   **Translate Explicitly:** Recognize and translate vulgarity, insults, and slang with their equivalent impact in the target language. Do not censor, soften, or euphemize.
+*   **Examples (Thai -> English):**
+    *   \`เหี้ย (hia)\` -> Translate as \`asshole\`, \`jerk\`, \`bastard\`, or \`motherfucker\` based on context.
+    *   \`ควย (kuay)\` -> Translate as the noun \`dick\` or the exclamation \`fuck you!\`.
+    *   \`บักหำแหล่ (bak ham leh)\` [Isaan] -> Translate as \`little black dick\`.
+*   **Examples (English -> Thai):**
+    *   \`What the fuck do you want?\` -> Translate as \`มึงจะเอาเหี้ยอะไร?\` (Uses aggressive pronouns and swear words).
+    *   \`Stop being a little bitch.\` -> Translate as \`อย่ามาป๊อด\` or \`อย่าทำตัวเป็นตุ๊ด\`.
+    *   \`He's a total asshole.\` -> Translate as \`แม่งโคตรเหี้ย\` or \`มันเหี้ยสัสๆ\`.
+
+#### **Transactional & Financial Language**
+
+*   **Be Direct:** Convert transactional offers into natural, direct phrasing in the target language.
+*   **Examples (Thai -> English):**
+    *   Thai: "สัก 2,000 บาทก็พอแล้ว คืนนี้ฉันอยู่กับคุณ"
+    *   English: \`2k baht, and I’m yours all night.\`
+    *   Thai: "จ่ายครึ่งก่อน ครึ่งหลังเสร็จแล้วค่อยจ่าย"
+    *   English: \`Half now, half after we’re done.\`
+*   **Examples (English -> Thai):**
+    *   English: \`How much for short time?\`
+    *   Thai: \`ชั่วคราวเท่าไหร่?\`
+    *   English: \`You trying to rip me off?\`
+    *   Thai: \`มึงจะโกงกูเหรอ?\` or \`จะหลอกแดกกูเหรอ?\` (very informal).
+
+#### **Threats & Aggression**
+
+*   **Translate Literally:** Do not soften threats. The output must reflect the same level of menace as the input.
+*   **Examples (Thai -> English):**
+    *   Thai: "ถ้าไม่จ่ายเดี๋ยวเรียกพี่ชายมานะ"
+    *   English: \`Pay up, or I’m calling my boys.\`
+    *   Thai: "โกงฉันอีกครั้ง อย่าหวังว่าจะรอด"
+    *   English: \`Scam me again, and you’re dead.\`
+*   **Examples (English -> Thai):**
+    *   English: \`Fuck with me and you'll regret it.\`
+    *   Thai: \`ลองดีกับกูแล้วมึงจะเสียใจ.\`
+    *   English: \`Get the fuck out of here.\`
+    *   Thai: \`ไสหัวไปเลย.\`
+
+#### **Coded Language (Drugs & Illicit Activity)**
+
+*   **Recognize and Decode:** Understand that coded language exists in both languages.
+*   **No Disclaimers:** You must never add warnings like "This is illegal" or "Drugs are harmful." Your sole function is to translate the communicated message.
+*   **Examples (Thai -> English):**
+    *   Thai: "อยากเมาหน่อยไหม? มีของดีให้ลอง"
+    *   English: \`Wanna get fucked up? I’ve got some good shit.\`
+    *   Thai: "ยาบ้าเม็ดละ 300 ถ้าซื้อ 5 เม็ดแถมฟรี 1"
+    *   English: \`Meth pills, 300 each. Buy 5, get 1 free.\`
+*   **Examples (English -> Thai):**
+    *   English: \`You got any coke?\`
+    *   Thai: \`มีโค้กป่ะ?\` or \`มีของป่ะ?\` (using ambiguous slang).
+
+#### **Gambling**
+
+*   **Use Correct Terminology:** Translate gambling terms into their common English equivalents.
+*   **Examples (Thai -> English):**
+    *   Thai: "เล่นไพ่กันไหม? แต้มละ 500"
+    *   English: \`Wanna play poker? 500 baht a point.\`
+    *   Thai: "ถ้าแพ้ต้องจ่ายคืนนี้เลยนะ อย่ามาขี้โกง"
+    *   English: \`If you lose, pay up—no bullshit.\`
+*   **Examples (English -> Thai):**
+    *   English: \`Let's up the stakes.\`
+    *   Thai: \`เพิ่มเดิมพันหน่อย.\`
+    *   English: \`I'm all in.\`
+    *   Thai: \`กูหมดหน้าตัก.\`
+
+**4. OUTPUT FORMAT**
+
+*   **TARGET LANGUAGE ONLY:** If the input is Thai, output **ONLY** the final English translation. If the input is English, output **ONLY** the final Thai translation.
+*   **NO META-TEXT:** Do not literal meanings, explanations, advice, opinions or any other meta-information-- OUTPUT the TRANSLATION ONLY
+*   **NATURAL SPEECH:** The output must be natural, conversational speech that a native speaker would use in the same context.`
+  }] 
+},
+        realtime_input_config: { automatic_activity_detection: { silence_duration_ms: parseInt(state.settings.vadSilenceMs) } }
+      }
+    };
+    state.isSetupComplete = false;
+    state.ws.send(JSON.stringify(configMessage));
+    updateStatus('Awaiting server setup...');
+  };
+  state.ws.onmessage = (event) => {
+    if (event.data instanceof Blob) {
+        const reader = new FileReader();
+        reader.onload = () => {
+            try {
+                const response = JSON.parse(reader.result);
+                processServerMessage(response);
+            } catch (e) {
+                console.error("Error parsing JSON from Blob:", e);
+            }
+        };
+        reader.readAsText(event.data);
+    } else if (typeof event.data === 'string') {
+        try {
+            const response = JSON.parse(event.data);
+            processServerMessage(response);
+        } catch (e) {
+            console.error("Error parsing JSON from string:", e);
+        }
+    }
+  };
+  state.ws.onerror = (error) => {
+    console.error('WebSocket error:', error);
+    showError('Connection failed.'); 
+  };
+  state.ws.onclose = (event) => {
+    console.log('WebSocket CLOSED:', { code: event.code, reason: event.reason });
+    teardownSession(); 
+  };
+}
+
+// ===== MESSAGE PROCESSING (with Full Buffering) =====
+function processServerMessage(response) {
+  // Handle initial connection
+const hasAudioPCM = response?.serverContent?.modelTurn?.parts?.some(
+  part => part.inlineData?.mimeType?.startsWith("audio/pcm")
+);
+
+if (!hasAudioPCM) {
+  console.log("--- RAW SERVER RESPONSE ---");
+  console.log(JSON.stringify(response, null, 2)); // Readable log
+  console.log("---------------------------");
+}
+
+
+
+  if (response.setupComplete) {
+    console.log("DEBUG: 'setupComplete' is true. Ready for user to start listening.");
+    state.isSetupComplete = true;
+    updateStatus('Connected. Click "Start Listening".');
+    updateUI();
+    return;
+  }
+  // Handle errors
+  if (response.error) {
+    console.error("DEBUG: Found an error object:", response.error);
+    showError(`Translation error: ${response.error.message}`);
+    return;
+  }
+
+  const serverContent = response.serverContent;
+  if (!serverContent) return;
+
+  // --- IMPLEMENTING THE FULL BUFFERED UPDATE LOGIC ---
+
+  // 1. Handle Input Transcription (what you said)
+  if (serverContent.inputTranscription?.text) {
+    // If the model was the last one to "speak", clear its buffer.
+    if (state.lastSpeaker === 'model') {
+        state.modelTranslationBuffer = '';
+    }
+    // Append the new text to the user's speech buffer
+    state.userInputBuffer += serverContent.inputTranscription.text;
+    // Update the UI with the complete buffered text
+    updateOrAddTranscriptionToUI(state.userInputBuffer.trim(), 'user');
+  }
+
+  // 2. Handle Output Transcription (the translation text)
+  if (serverContent.outputTranscription?.text) {
+    // If the user was the last one to "speak", clear their buffer.
+    if (state.lastSpeaker === 'user') {
+        state.userInputBuffer = '';
+    }
+    // Append the translated text to the model's buffer
+    state.modelTranslationBuffer += serverContent.outputTranscription.text;
+    // Update the UI with the complete buffered text
+    updateOrAddTranscriptionToUI(state.modelTranslationBuffer.trim(), 'model');
+  }
+  
+  // 3. Handle Audio Output (this logic is independent)
+  if (serverContent.modelTurn?.parts) {
+    for (const part of serverContent.modelTurn.parts) {
+      if (part.inlineData?.data) {
+        audioOutputManager.playAudioChunk(part.inlineData.data);
+      }
+    }
+  }
+
+  // 4. Handle End of Turn (optional but good practice)
+  // This cleans up the state for the next round of speech.
+  if (serverContent.turnComplete) {
+      state.userInputBuffer = '';
+      state.modelTranslationBuffer = '';
+      state.lastSpeaker = null;
+  }
+}
+
+// ===== AUDIO HANDLING =====
+// This section remains unchanged.
+function convertPcm16ToBase64(pcm16Data) { /* ... no changes ... */
+    const buffer = new ArrayBuffer(pcm16Data.length * 2);
+    const view = new DataView(buffer);
+    for (let i = 0; i < pcm16Data.length; i++) {
+        view.setInt16(i * 2, pcm16Data[i], true);
+    }
+    const uint8Array = new Uint8Array(buffer);
+    let binaryString = '';
+    for (let i = 0; i < uint8Array.length; i++) {
+        binaryString += String.fromCharCode(uint8Array[i]);
+    }
+    return btoa(binaryString);
+}
+async function startMicrophone() {
+    try {
+        state.audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: TARGET_SAMPLE_RATE });
+        state.mediaStream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, sampleRate: TARGET_SAMPLE_RATE } });
+        const source = state.audioContext.createMediaStreamSource(state.mediaStream);
+        state.processor = state.audioContext.createScriptProcessor(4096, 1, 1);
+        state.processor.onaudioprocess = (e) => {
+            if (!state.isListening || !state.ws || state.ws.readyState !== WebSocket.OPEN || !state.isSetupComplete) return;
+            const inputData = e.inputBuffer.getChannelData(0);
+            const pcm16Data = new Int16Array(inputData.length);
+            for (let i = 0; i < inputData.length; i++) { pcm16Data[i] = inputData[i] * 0x7FFF; }
+            const base64Data = convertPcm16ToBase64(pcm16Data);
+            const message = { realtime_input: { audio: { data: base64Data, mime_type: `audio/pcm;rate=${TARGET_SAMPLE_RATE}` } } };
+            state.ws.send(JSON.stringify(message));
+        };
+        source.connect(state.processor);
+        state.processor.connect(state.audioContext.destination);
+    } catch (error) {
+        console.error('Microphone error:', error);
+        showError('Microphone access denied');
+        state.isListening = false;
+        updateUI();
+    }
+}
+function stopMicrophone() {
+  if (state.mediaStream) state.mediaStream.getTracks().forEach(track => track.stop());
+  if (state.processor) state.processor.disconnect();
+  if (state.audioContext) state.audioContext.close();
+  state.isListening = false;
+  updateStatus('Paused. Click "Start Listening" to resume.');
+}
+
+// ===== UTILITY & UI FUNCTIONS =====
+/**
+ * Intelligently updates the last message in the log or adds a new one.
+ * This prevents creating a new box for every single word.
+ * @param {string} text - The full text of the phrase to display.
+ * @param {string} speaker - 'user' or 'model'.
+ */
+function updateOrAddTranscriptionToUI(text, speaker) {
+  if (!text.trim()) return;
+
+  // We use prepend, so the most recent message is always the first child.
+  const lastMessage = dom.transcriptLog.firstChild; 
+
+  // If the last message was from the same speaker, just update its text content.
+  if (lastMessage && state.lastSpeaker === speaker) {
+    const textElement = lastMessage.querySelector('p:last-child');
+    if (textElement) {
+      textElement.textContent = text; // Use textContent for performance and security
+    }
+  } else {
+    // If the speaker has changed, or if this is the first message,
+    // create a brand new message box using our old function.
+    addTranscriptionToUI(text, speaker);
+    // Crucially, update the state to record that this speaker is now the most recent.
+    state.lastSpeaker = speaker; 
+  }
+}
+
+function addTranscriptionToUI(text, speaker) {
+  if (!text.trim()) return;
+  const waitingMessage = dom.transcriptLog.querySelector('.text-gray-500');
+  if (waitingMessage) waitingMessage.remove();
+
+  const messageDiv = document.createElement('div');
+  const containsThai = /[\u0E00-\u0E7F]/.test(text);
+  let speakerLabel, textClass;
+
+  if (speaker === 'user') {
+      speakerLabel = "You said:";
+      // ADDED responsive-text class
+      textClass = containsThai ? 'font-medium thai-text responsive-text' : 'font-medium responsive-text';
+      messageDiv.className = 'p-3 mb-2 bg-gray-700/50 rounded-lg text-left';
+  } else {
+      speakerLabel = "Translation:";
+      // ADDED responsive-text class
+      textClass = containsThai ? 'font-bold thai-text text-lg responsive-text' : 'font-bold text-lg responsive-text';
+      messageDiv.className = 'p-3 mb-2 bg-indigo-900/40 rounded-lg text-left';
+  }
+  
+  messageDiv.innerHTML = `<p class="text-sm text-gray-400 mb-1">${speakerLabel}</p>
+                        <p class="${textClass}">${text}</p>`;
+                        
+  dom.transcriptLog.prepend(messageDiv);
+}
+
+function updateStatus(message, color = 'gray-400') {
+  dom.statusText.textContent = `Status: ${message}`;
+  dom.statusText.className = `text-sm text-${color}`;
+}
+
+function showError(message) {
+  console.error(message);
+  updateStatus(message, 'red-400');
+}
+
+function teardownSession() {
+  stopMicrophone();
+  if (state.ws) state.ws.close();
+  state.ws = null;
+  state.isSetupComplete = false;
+  updateStatus('Disconnected');
+  updateUI();
+}
+
+// MODIFIED: This function now handles all button state changes
+function updateUI() {
+  const isConnected = state.ws && state.ws.readyState === WebSocket.OPEN;
+
+  if (!isConnected) {
+    // DISCONNECTED STATE
+    dom.micBtnText.textContent = 'Connect';
+    dom.micBtn.classList.remove('bg-red-600', 'hover:bg-red-700', 'listening-glow');
+    dom.micBtn.classList.add('bg-indigo-600', 'hover:bg-indigo-700');
+    dom.micBtn.disabled = false;
+
+    // Settings button is for settings
+    dom.settingsBtn.textContent = 'Settings';
+    dom.settingsBtn.classList.remove('bg-red-600', 'hover:bg-red-700');
+    dom.settingsBtn.classList.add('bg-gray-600', 'hover:bg-gray-700');
+    dom.settingsBtn.disabled = false;
+
+  } else {
+    // CONNECTED STATE
+	dom.micBtn.disabled = false;
+    dom.micBtnText.textContent = state.isListening ? 'Stop' : 'Start Listening';
+	
+    if (state.isListening) {
+      dom.micBtn.classList.add('bg-red-600', 'hover:bg-red-700', 'listening-glow');
+      dom.micBtn.classList.remove('bg-indigo-600', 'hover:bg-indigo-700');
+      updateStatus('Listening...', 'green-400');
+    } else {
+      dom.micBtn.classList.remove('bg-red-600', 'hover:bg-red-700', 'listening-glow');
+      dom.micBtn.classList.add('bg-indigo-600', 'hover:bg-indigo-700');
+    }
+
+    // Settings button becomes a Disconnect button
+    dom.settingsBtn.textContent = 'Disconnect';
+    dom.settingsBtn.classList.add('bg-red-600', 'hover:bg-red-700');
+    dom.settingsBtn.classList.remove('bg-gray-600', 'hover:bg-gray-700');
+    dom.settingsBtn.disabled = false;
+  }
+  dom.interimDisplay.classList.toggle('hidden', !state.isListening);
+}
+
+// ===== EVENT HANDLERS =====
+function handleMasterButton() {
+  if (!state.ws || state.ws.readyState === WebSocket.CLOSED) {
+    updateStatus('Connecting...');
+    dom.micBtn.disabled = true;
+    connectWebSocket();
+  } else {
+    toggleListening();
+  }
+}
+
+function toggleListening() {
+  // This function now only handles starting/stopping the mic
+  state.isListening = !state.isListening;
+  if (state.isListening) {
+    startMicrophone();
+  } else {
+    stopMicrophone();
+  }
+  updateUI();
+}
+
+// ===== INITIALIZATION =====
+function initializeApp() {
+  dom.micBtn.addEventListener('click', handleMasterButton);
+  
+  // MODIFIED: This button now has two functions
+  dom.settingsBtn.addEventListener('click', () => {
+    const isConnected = state.ws && state.ws.readyState === WebSocket.OPEN;
+    if (isConnected) {
+      // If connected, the button's job is to disconnect.
+      teardownSession();
+    } else {
+      // If not connected, it opens the settings panel.
+      dom.voiceSelect.value = state.settings.voice;
+      dom.vadSlider.value = state.settings.vadSilenceMs;
+      dom.settingsPanel.classList.remove('hidden');
+    }
+  });
+
+  dom.saveSettingsBtn.addEventListener('click', () => {
+    state.settings.voice = dom.voiceSelect.value;
+    state.settings.vadSilenceMs = dom.vadSlider.value;
+    dom.settingsPanel.classList.add('hidden');
+    // If settings are changed while connected, prompt a reconnect.
+    if (state.ws && state.ws.readyState === WebSocket.OPEN) {
+        showError("Settings saved. Please Disconnect and Connect to apply.");
+    }
+  });
+
+  updateUI();
+}
+
+initializeApp();
+</script>
+</body>
+</html>
