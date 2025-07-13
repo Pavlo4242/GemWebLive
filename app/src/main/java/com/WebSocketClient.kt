@@ -1,4 +1,4 @@
-package com.example.gemweblive
+package com.gemweblive
 
 import android.util.Log
 import okhttp3.OkHttpClient
