@@ -20,6 +20,9 @@ class WebSocketClient(
 ) {
     private var webSocket: WebSocket? = null
     private var isSetupComplete = false
+    private var setupTimeoutJob: Job? = null
+    private val timeoutDuration = 10000L // 10 seconds timeout
+    
     private val client = OkHttpClient.Builder()
         .addInterceptor(HttpLoggingInterceptor().apply {
             level = HttpLoggingInterceptor.Level.BODY
@@ -33,6 +36,15 @@ class WebSocketClient(
     }
 
     fun connect() {
+        setupTimeoutJob = CoroutineScope(Dispatchers.IO).launch {
+            delay(timeoutDuration)
+            if (!isSetupComplete) {
+                Log.w(TAG, "Setup timeout reached")
+                onFailure.invoke(TimeoutException("Server setup timed out after ${timeoutDuration}ms"), null)
+                disconnect()
+            }
+        }
+
         val request = Request.Builder()
             .url("wss://$HOST/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=$API_KEY")
             .build()
@@ -47,20 +59,20 @@ class WebSocketClient(
 
             override fun onMessage(webSocket: WebSocket, text: String) {
                 try {
+                    Log.d(TAG, "Received message: ${text.take(200)}...") // Log first 200 chars
                     val response = JSONObject(text)
                     
-                    if (response.has("setupComplete") && response.getBoolean("setupComplete")) {
-                        isSetupComplete = true
-                        Log.i(TAG, "Server setup complete")
+                    if (response.has("setupComplete")) {
+                        isSetupComplete = response.getBoolean("setupComplete")
+                        setupTimeoutJob?.cancel()
+                        Log.i(TAG, "Server setup complete: $isSetupComplete")
+                        if (isSetupComplete) {
+                            onMessage(text) // Forward setup complete message
+                        }
                         return
                     }
                     
-                    if (response.has("error")) {
-                        val error = response.getJSONObject("error")
-                        Log.e(TAG, "Server error: ${error.getString("message")}")
-                        return
-                    }
-                    
+                    // Forward all other messages
                     onMessage(text)
                 } catch (e: Exception) {
                     Log.e(TAG, "Error processing message", e)
@@ -68,21 +80,18 @@ class WebSocketClient(
             }
 
             override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
-                Log.i(TAG, "WebSocket is closing: $code $reason")
-                isSetupComplete = false
+                Log.i(TAG, "WebSocket closing: $code $reason")
+                setupTimeoutJob?.cancel()
                 onClosing(code, reason)
             }
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
                 Log.e(TAG, "WebSocket failure", t)
-                isSetupComplete = false
+                setupTimeoutJob?.cancel()
                 onFailure(t, response)
             }
         })
     }
-
-    fun isConnected(): Boolean = webSocket != null
-    fun isReady(): Boolean = isConnected() && isSetupComplete
 
     private fun sendConfigMessage() {
         val config = JSONObject().apply {
@@ -107,30 +116,20 @@ class WebSocketClient(
                 })
             })
         }
+        
         webSocket?.send(config.toString())
-    }
-
-    fun sendAudio(base64Data: String) {
-        if (!isReady()) {
-            Log.w(TAG, "Cannot send audio - not ready")
-            return
-        }
-        val message = JSONObject().apply {
-            put("realtime_input", JSONObject().apply {
-                put("audio", JSONObject().apply {
-                    put("data", base64Data)
-                    put("mime_type", "audio/pcm;rate=16000")
-                })
-            })
-        }
-        webSocket?.send(message.toString())
+        Log.d(TAG, "Sent config: ${config.toString(2)}")
     }
 
     fun disconnect() {
+        setupTimeoutJob?.cancel()
         webSocket?.close(1000, "User disconnected")
         webSocket = null
         isSetupComplete = false
     }
+
+    fun isConnected(): Boolean = webSocket != null
+    fun isReady(): Boolean = isConnected() && isSetupComplete
 
     private fun getSystemPrompt(): String {
     // Replace the content here with the full prompt from WorkingAudioD.html
