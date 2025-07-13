@@ -24,10 +24,10 @@ class MainActivity : AppCompatActivity() {
 
     private val mainScope = CoroutineScope(Dispatchers.Main)
 
-    // Simplified state flags
-    private var isListening = false
-    private var isSessionActive = false
-    private var isServerReady = false
+    // Simplified state flags managed by the activity
+    @Volatile private var isListening = false
+    @Volatile private var isSessionActive = false
+    @Volatile private var isServerReady = false
 
     private val models = listOf(
         "gemini-2.5-flash-preview-native-audio-dialog",
@@ -47,10 +47,9 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
         checkPermissions()
         setupUI()
-        setupWebSocketClient() // Initial setup
+        prepareNewClient()
     }
-    
-    // UI setup is cleaner
+
     private fun setupUI() {
         translationAdapter = TranslationAdapter()
         binding.transcriptLog.apply {
@@ -64,7 +63,7 @@ class MainActivity : AppCompatActivity() {
                 if (selectedModel != models[position]) {
                     selectedModel = models[position]
                     if (isSessionActive) {
-                        Toast.makeText(this@MainActivity, "Reconnecting...", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this@MainActivity, "Applying new model...", Toast.LENGTH_SHORT).show()
                         teardownSession(reconnect = true)
                     }
                 }
@@ -74,18 +73,17 @@ class MainActivity : AppCompatActivity() {
 
         binding.micBtn.setOnClickListener { handleMasterButton() }
         binding.settingsBtn.setOnClickListener { handleSettingsDisconnectButton() }
-        updateUI() // Initial UI state
+        updateUI() // Set initial state
     }
 
-    // WebSocket client is now re-initialized cleanly when needed
-    private fun setupWebSocketClient() {
+    private fun prepareNewClient() {
         webSocketClient = WebSocketClient(
             model = selectedModel,
             vadSilenceMs = getVadSensitivity(),
             onOpen = {
                 mainScope.launch {
                     isSessionActive = true
-                    updateStatus("Connected, waiting for server...")
+                    updateStatus("Connected, awaiting server...")
                     updateUI()
                 }
             },
@@ -95,22 +93,22 @@ class MainActivity : AppCompatActivity() {
             onClosing = { _, _ ->
                 mainScope.launch { teardownSession() }
             },
-            onFailure = { t, _ ->
+            onFailure = { t ->
                 mainScope.launch {
-                    showError("Connection Error: ${t.message}")
+                    showError("Error: ${t.message}")
                     teardownSession()
                 }
             },
             onSetupComplete = {
                 mainScope.launch {
                     isServerReady = true
-                    updateStatus("Ready. Click to start listening.")
+                    updateStatus("Ready to listen.")
                     updateUI()
                 }
             }
         )
     }
-
+    
     private fun handleMasterButton() {
         if (!isSessionActive) {
             connect()
@@ -123,8 +121,13 @@ class MainActivity : AppCompatActivity() {
         if (isSessionActive) {
             teardownSession()
         } else {
-            // Show settings dialog
+            showSettingsDialog()
         }
+    }
+    
+    private fun showSettingsDialog() {
+        val dialog = SettingsDialog(this, getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE))
+        dialog.show()
     }
     
     private fun getVadSensitivity(): Int {
@@ -141,7 +144,7 @@ class MainActivity : AppCompatActivity() {
     private fun processServerMessage(text: String) {
         try {
             val response = JSONObject(text)
-            // Process transcriptions and other messages
+            // This logic can be expanded based on message types
             response.optJSONObject("serverContent")?.let { content ->
                 content.optJSONObject("inputTranscription")?.optString("text")?.let {
                     translationAdapter.addOrUpdateTranslation(it, true)
@@ -150,58 +153,58 @@ class MainActivity : AppCompatActivity() {
                     translationAdapter.addOrUpdateTranslation(it, false)
                 }
             }
-            // ... (handle other message types if necessary)
-            binding.transcriptLog.scrollToPosition(0)
         } catch (e: Exception) {
-            Log.e(TAG, "Error parsing message", e)
+            Log.e(TAG, "Error processing server message", e)
         }
     }
 
     private fun toggleListening() {
-        if (!isServerReady) return // Guard against premature listening
+        if (!isServerReady) return
         isListening = !isListening
         if (isListening) startAudio() else stopAudio()
         updateUI()
     }
 
     private fun startAudio() {
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
-            audioHandler = AudioHandler(this) { audioData ->
-                if (webSocketClient.isReady()) {
-                    webSocketClient.sendAudio(audioData)
-                }
-            }
-            audioHandler.startRecording()
-            updateStatus("Listening...")
-        } else {
-            isListening = false
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             checkPermissions()
+            isListening = false // Can't listen without permission
+            return
         }
+        audioHandler = AudioHandler(this) { audioData ->
+            if (webSocketClient.isReady()) {
+                webSocketClient.sendAudio(audioData)
+            }
+        }
+        audioHandler.startRecording()
+        updateStatus("Listening...")
     }
 
     private fun stopAudio() {
         if (::audioHandler.isInitialized) {
             audioHandler.stopRecording()
         }
-        updateStatus("Paused. Click to resume.")
+        updateStatus("Paused.")
     }
 
-    // Simplified teardown and reconnect logic
     private fun teardownSession(reconnect: Boolean = false) {
         if (!isSessionActive) return
-        stopAudio()
-        webSocketClient.disconnect()
+        
         isListening = false
         isSessionActive = false
         isServerReady = false
         
+        if (::audioHandler.isInitialized) {
+            audioHandler.stopRecording()
+        }
+        webSocketClient.disconnect()
+
         mainScope.launch {
             if (!reconnect) {
                  updateStatus("Disconnected")
-                 updateUI()
             }
-            // Always prepare a fresh client for the next connection attempt
-            setupWebSocketClient()
+            updateUI()
+            prepareNewClient() // Prepare a fresh client for the next connection
             if (reconnect) {
                 connect()
             }
@@ -211,17 +214,16 @@ class MainActivity : AppCompatActivity() {
     private fun updateUI() {
         binding.modelSpinner.isEnabled = !isSessionActive
         binding.settingsBtn.text = if (isSessionActive) "Disconnect" else "Settings"
-
+        
         if (!isSessionActive) {
             binding.micBtn.text = "Connect"
             binding.micBtn.isEnabled = true
         } else {
-            if (!isServerReady) {
-                binding.micBtn.text = "Connecting..."
-                binding.micBtn.isEnabled = false
-            } else {
-                binding.micBtn.text = if (isListening) "Stop" else "Start Listening"
-                binding.micBtn.isEnabled = true
+            binding.micBtn.isEnabled = isServerReady
+            binding.micBtn.text = when {
+                !isServerReady -> "Connecting..."
+                isListening -> "Stop"
+                else -> "Start Listening"
             }
         }
         binding.interimDisplay.visibility = if (isListening) View.VISIBLE else View.GONE
@@ -232,7 +234,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showError(message: String) {
-        Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
         updateStatus(message)
     }
 
@@ -244,8 +246,8 @@ class MainActivity : AppCompatActivity() {
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == REQUEST_RECORD_AUDIO_PERMISSION && !(grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED)) {
-            showError("Audio permission is required.")
+        if (requestCode == REQUEST_RECORD_AUDIO_PERMISSION && (grantResults.isEmpty() || grantResults[0] != PackageManager.PERMISSION_GRANTED)) {
+            showError("Audio recording permission is required to use this app.")
         }
     }
 
