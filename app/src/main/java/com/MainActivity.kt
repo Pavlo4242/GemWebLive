@@ -11,6 +11,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.gemweblive.databinding.ActivityMainBinding
 import com.example.gemweblive.databinding.ActivityMainBinding
 import kotlinx.coroutines.*
 import org.json.JSONObject

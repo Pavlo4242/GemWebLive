@@ -1,48 +1,32 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:orientation="vertical"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:padding="24dp"
-    android:background="#1F2937">
+    android:orientation="vertical"
+    android:padding="16dp">
 
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Translator Settings"
-        android:textColor="@color/white"
-        android:textSize="20sp"
-        android:textStyle="bold"/>
-    
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="End of Speech Sensitivity"
-        android:textColor="#D1D5DB"
-        android:layout_marginTop="16dp"/>
-    
+        android:text="VAD Sensitivity (ms)" />
+
     <SeekBar
-        android:id="@+id/vad_sensitivity"
+        android:id="@+id/vadSensitivity"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:max="2000"
-        android:min="200"
-        android:progress="800"
-        android:layout_marginTop="8dp"/>
+        android:max="2000" />
+
     <TextView
-        android:id="@+id/vad_value"
+        android:id="@+id/vadValue"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="800 ms"
-        android:textColor="#9CA3AF"
-        android:layout_gravity="center_horizontal"/>
-    
-     <Button
-        android:id="@+id/save_settings_btn"
+        android:layout_gravity="center_horizontal" />
+
+    <Button
+        android:id="@+id/saveSettingsBtn"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Save and Close"
         android:layout_gravity="end"
-        android:layout_marginTop="24dp"/>
+        android:text="Save" />
 
 </LinearLayout>

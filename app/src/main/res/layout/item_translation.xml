@@ -1,26 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:orientation="vertical"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:padding="8dp"
-    android:layout_marginBottom="4dp"
-    android:background="#374151">
+    android:orientation="vertical"
+    android:padding="8dp">
 
     <TextView
-        android:id="@+id/speaker_label"
+        android:id="@+id/speakerLabel"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Speaker:"
-        android:textSize="12sp"
-        android:textColor="#9CA3AF"/>
+        android:textStyle="bold" />
 
     <TextView
-        android:id="@+id/translation_text"
+        android:id="@+id/translationText"
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="This is a sample translation."
-        android:textColor="@color/white"
-        android:textSize="16sp"/>
+        android:layout_height="wrap_content" />
 
 </LinearLayout>
