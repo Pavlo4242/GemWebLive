@@ -105,20 +105,23 @@ class WebSocketClient(
         webSocket?.send(config.toString())
         Log.d(TAG, "Sent config: ${config.toString(2)}")
     }
-
-      fun sendAudio(audioData: ByteArray) {
-        if (isReady()) {
-            val realtimeInput = JSONObject().apply {
-                put("realtime_input", JSONObject().apply {
-                    put("audio", JSONObject().apply {
-                        put("data", android.util.Base64.encodeToString(audioData, android.util.Base64.NO_WRAP))
-                        put("mime_type", "audio/pcm;rate=16000")
-                    })
+fun sendAudio(base64Audio: String) {
+    try {
+        // Create JSON message with Base64 audio (matches web version format)
+        val message = JSONObject().apply {
+            put("realtime_input", JSONObject().apply {
+                put("audio", JSONObject().apply {
+                    put("data", base64Audio)
+                    put("mime_type", "audio/pcm;rate=16000") // Match your sample rate
                 })
-            }
-            webSocket?.send(realtimeInput.toString())
+            })
         }
+        webSocket?.send(message.toString())
+        Log.d(TAG, "Sent Base64 audio chunk (${base64Audio.length} chars)")
+    } catch (e: Exception) {
+        Log.e(TAG, "Error sending audio message", e)
     }
+}
 
     fun disconnect() {
         setupTimeoutJob?.cancel()
