@@ -102,123 +102,118 @@ class MainActivity : AppCompatActivity() {
         return prefs.getInt("vad_sensitivity_ms", 800)
     }
 
-private fun connect() {
-    // Reset the setup complete flag on each new connection attempt
-    isServerSetupComplete = false
-
-private fun connect() {
-    isServerSetupComplete = false
-    
-    webSocketClient = WebSocketClient(
-        model = selectedModel,
-        vadSilenceMs = getVadSensitivity(),
-        onOpen = {
-            mainScope.launch {
-                isConnected = true
-                updateStatus("Awaiting server setup...")
-                updateUI()
-                Log.d(TAG, "WebSocket opened, sending config...") // Add this
+    private fun connect() {
+        isServerSetupComplete = false
+        
+        webSocketClient = WebSocketClient(
+            model = selectedModel,
+            vadSilenceMs = getVadSensitivity(),
+            onOpen = {
+                mainScope.launch {
+                    isConnected = true
+                    updateStatus("Awaiting server setup...")
+                    updateUI()
+                    Log.d(TAG, "WebSocket opened, sending config...")
+                }
+            },
+            onMessage = { text ->
+                mainScope.launch {
+                    Log.d(TAG, "Raw message: $text")
+                    processServerMessage(text)
+                }
+            },
+            onClosing = { code, reason ->
+                mainScope.launch {
+                    Log.d(TAG, "WebSocket Closing: $code $reason")
+                    teardownSession()
+                }
+            },
+            onFailure = { t, response ->
+                mainScope.launch {
+                    Log.e(TAG, "WebSocket Failure: ${t.message}", t)
+                    showError("Connection failed: ${t.message}")
+                    teardownSession()
+                }
             }
-        },
-        onMessage = { text ->
-            mainScope.launch {
-                Log.d(TAG, "Raw message: $text") // Add this
-                processServerMessage(text)
-            }
-        },
-        onClosing = { code, reason ->
-            mainScope.launch {
-                Log.d(TAG, "WebSocket Closing: $code $reason")
-                teardownSession()
-            }
-        },
-        onFailure = { t, response ->
-            mainScope.launch {
-                Log.e(TAG, "WebSocket Failure: ${t.message}", t)
-                showError("Connection failed: ${t.message}")
-                teardownSession()
-            }
+        )
+        
+        mainScope.launch(Dispatchers.IO) {
+            webSocketClient.connect()
         }
-    )
-    // Launch the connection on a background thread to avoid blocking the UI
-    mainScope.launch(Dispatchers.IO) {
-        webSocketClient.connect()
     }
-}
 
-private fun processServerMessage(text: String) {
-    Log.d(TAG, "RAW MESSAGE: ${text.take(500)}") // Log first 500 chars of raw message
-    
-    try {
-        val response = JSONObject(text)
-        Log.d(TAG, "PARSED JSON KEYS: ${response.keys().joinToString()}")
+    private fun processServerMessage(text: String) {
+        Log.d(TAG, "RAW MESSAGE: ${text.take(500)}")
+        
+        try {
+            val response = JSONObject(text)
+            Log.d(TAG, "PARSED JSON KEYS: ${response.keys().joinToString()}")
 
-        when {
-            response.has("setupComplete") -> {
-                isServerSetupComplete = response.getBoolean("setupComplete")
-                Log.i(TAG, "SERVER SETUP COMPLETE: $isServerSetupComplete")
-                updateStatus("Connected. Click 'Start Listening'.")
-                updateUI()
-                
-                // Debug: Log full setupComplete response
-                Log.d(TAG, "SETUP COMPLETE DETAILS: ${response.toString(2)}")
-            }
+            when {
+                response.has("setupComplete") -> {
+                    isServerSetupComplete = response.getBoolean("setupComplete")
+                    Log.i(TAG, "SERVER SETUP COMPLETE: $isServerSetupComplete")
+                    updateStatus("Connected. Click 'Start Listening'.")
+                    updateUI()
+                    
+                    Log.d(TAG, "SETUP COMPLETE DETAILS: ${response.toString(2)}")
+                }
 
-            response.has("serverContent") -> {
-                val serverContent = response.getJSONObject("serverContent")
-                Log.d(TAG, "SERVER CONTENT KEYS: ${serverContent.keys().joinToString()}")
-                
-                serverContent.optJSONObject("inputTranscription")?.let { 
-                    Log.d(TAG, "INPUT TRANS: ${it.toString(2)}")
-                    it.optString("text")?.let { text ->
-                        translationAdapter.addOrUpdateTranslation(text, true)
+                response.has("serverContent") -> {
+                    val serverContent = response.getJSONObject("serverContent")
+                    Log.d(TAG, "SERVER CONTENT KEYS: ${serverContent.keys().joinToString()}")
+                    
+                    serverContent.optJSONObject("inputTranscription")?.let { 
+                        Log.d(TAG, "INPUT TRANS: ${it.toString(2)}")
+                        it.optString("text")?.let { text ->
+                            translationAdapter.addOrUpdateTranslation(text, true)
+                        }
+                    }
+                    
+                    serverContent.optJSONObject("outputTranscription")?.let {
+                        Log.d(TAG, "OUTPUT TRANS: ${it.toString(2)}")
+                        it.optString("text")?.let { text ->
+                            translationAdapter.addOrUpdateTranslation(text, false)
+                        }
                     }
                 }
                 
-                serverContent.optJSONObject("outputTranscription")?.let {
-                    Log.d(TAG, "OUTPUT TRANS: ${it.toString(2)}")
-                    it.optString("text")?.let { text ->
-                        translationAdapter.addOrUpdateTranslation(text, false)
+                response.has("inputTranscription") -> {
+                    val input = response.getJSONObject("inputTranscription")
+                    Log.d(TAG, "STANDALONE INPUT: ${input.toString(2)}")
+                    input.optString("text")?.let {
+                        translationAdapter.addOrUpdateTranslation(it, true)
                     }
+                }
+
+                response.has("outputTranscription") -> {
+                    val output = response.getJSONObject("outputTranscription")
+                    Log.d(TAG, "STANDALONE OUTPUT: ${output.toString(2)}")
+                    output.optString("text")?.let {
+                        translationAdapter.addOrUpdateTranslation(it, false)
+                    }
+                }
+
+                response.has("error") -> {
+                    val error = response.getJSONObject("error")
+                    Log.e(TAG, "SERVER ERROR: ${error.toString(2)}")
+                    showError("API Error: ${error.getString("message")}")
+                }
+
+                else -> {
+                    Log.w(TAG, "UNHANDLED MESSAGE TYPE. FULL MESSAGE:\n${response.toString(2)}")
                 }
             }
             
-            response.has("inputTranscription") -> {
-                val input = response.getJSONObject("inputTranscription")
-                Log.d(TAG, "STANDALONE INPUT: ${input.toString(2)}")
-                input.optString("text")?.let {
-                    translationAdapter.addOrUpdateTranslation(it, true)
-                }
+            if (response.has("inputTranscription") || response.has("outputTranscription") || response.has("serverContent")) {
+                binding.transcriptLog.scrollToPosition(0)
             }
 
-            response.has("outputTranscription") -> {
-                val output = response.getJSONObject("outputTranscription")
-                Log.d(TAG, "STANDALONE OUTPUT: ${output.toString(2)}")
-                output.optString("text")?.let {
-                    translationAdapter.addOrUpdateTranslation(it, false)
-                }
-            }
-
-            response.has("error") -> {
-                val error = response.getJSONObject("error")
-                Log.e(TAG, "SERVER ERROR: ${error.toString(2)}")
-                showError("API Error: ${error.getString("message")}")
-            }
-
-            else -> {
-                Log.w(TAG, "UNHANDLED MESSAGE TYPE. FULL MESSAGE:\n${response.toString(2)}")
-            }
+        } catch (e: Exception) {
+            Log.e(TAG, "MESSAGE PARSING ERROR. Original text: $text", e)
         }
-        
-        // Scroll handling remains the same
-        if (response.has("inputTranscription") || response.has("outputTranscription") || response.has("serverContent")) {
-            binding.transcriptLog.scrollToPosition(0)
-        }
-
-    } catch (e: Exception) {
-        Log.e(TAG, "MESSAGE PARSING ERROR. Original text: $text", e)
     }
-}
+
     private fun toggleListening() {
         isListening = !isListening
         if (isListening) {
@@ -244,7 +239,6 @@ private fun processServerMessage(text: String) {
         }
     }
 
-
     private fun stopAudio() {
         if(::audioHandler.isInitialized) {
             audioHandler.stopRecording()
@@ -252,40 +246,39 @@ private fun processServerMessage(text: String) {
         updateStatus("Paused.")
     }
 
-private fun teardownSession() {
-    stopAudio()
-    if (::webSocketClient.isInitialized) {
-        webSocketClient.disconnect()
+    private fun teardownSession() {
+        stopAudio()
+        if (::webSocketClient.isInitialized) {
+            webSocketClient.disconnect()
+        }
+        isConnected = false
+        isListening = false
+        isServerSetupComplete = false
+        updateStatus("Disconnected")
+        updateUI()
     }
-    isConnected = false
-    isListening = false
-    isServerSetupComplete = false // Reset the server setup flag
-    updateStatus("Disconnected")
-    updateUI()
-}
 
- private fun updateUI() {
-    // The Mic button is only enabled after the server has confirmed the setup is complete.
-    binding.micBtn.isEnabled = isServerSetupComplete
+    private fun updateUI() {
+        binding.micBtn.isEnabled = isServerSetupComplete
 
-    if (!isConnected) {
-        binding.micBtn.text = "Connect"
-        binding.micBtn.isEnabled = true // Ensure the connect button is always enabled when disconnected
-        binding.settingsBtn.text = "Settings"
-        binding.interimDisplay.visibility = View.GONE
-        binding.modelSpinner.isEnabled = true
-    } else {
-        binding.modelSpinner.isEnabled = false
-        binding.settingsBtn.text = "Disconnect"
-        if (isListening) {
-            binding.micBtn.text = "Stop"
-            binding.interimDisplay.visibility = View.VISIBLE
-        } else {
-            binding.micBtn.text = "Start Listening"
+        if (!isConnected) {
+            binding.micBtn.text = "Connect"
+            binding.micBtn.isEnabled = true
+            binding.settingsBtn.text = "Settings"
             binding.interimDisplay.visibility = View.GONE
+            binding.modelSpinner.isEnabled = true
+        } else {
+            binding.modelSpinner.isEnabled = false
+            binding.settingsBtn.text = "Disconnect"
+            if (isListening) {
+                binding.micBtn.text = "Stop"
+                binding.interimDisplay.visibility = View.VISIBLE
+            } else {
+                binding.micBtn.text = "Start Listening"
+                binding.interimDisplay.visibility = View.GONE
+            }
         }
     }
-}
 
     private fun updateStatus(message: String) {
         binding.statusText.text = "Status: $message"
