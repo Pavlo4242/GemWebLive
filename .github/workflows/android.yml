@@ -2,6 +2,7 @@
 name: Android CI
 
 on:
+  push:
   workflow_dispatch:
 
 jobs:
@@ -36,7 +37,7 @@ jobs:
         pip install websockets
 
     - name: Setup Android SDK
-      uses: android-actions/setup-android@v3
+      uses: android-actions/setup-android@v4
       with:
         cmdline-tools-version: '8.0'
 
