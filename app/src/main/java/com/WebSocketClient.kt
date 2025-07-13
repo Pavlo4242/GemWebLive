@@ -63,20 +63,29 @@ class WebSocketClient(
         return webSocket != null
     }
 
-    private fun sendConfigMessage() {
-        val config = JSONObject().apply {
-            put("setup", JSONObject().apply {
-                put("model", "models/$model")
-                put("generation_config", JSONObject().put("response_modalities", JSONArray().put("AUDIO")))
-                put("input_audio_transcription", JSONObject())
-                put("output_audio_transcription", JSONObject())
-                put("system_instruction", JSONObject().put("parts", JSONArray().put(JSONObject().put("text", getSystemPrompt()))))
-                put("realtime_input_config", JSONObject().put("automatic_activity_detection", JSONObject().put("silence_duration_ms", vadSilenceMs)))
-            })
-        }
-        webSocket?.send(config.toString())
-        Log.d(TAG, "Sent config message: $config")
+private fun sendConfigMessage() {
+    // The top-level JSON object
+    val config = JSONObject().apply {
+        
+        // 1. Add the 'setup' object
+        put("setup", JSONObject().apply {
+            put("model", "models/$model")
+            put("generation_config", JSONObject().put("response_modalities", JSONArray().put("AUDIO")))
+            put("input_audio_transcription", JSONObject())
+            put("output_audio_transcription", JSONObject())
+            put("system_instruction", JSONObject().put("parts", JSONArray().put(JSONObject().put("text", getSystemPrompt()))))
+            // Note: realtime_input_config is NOT here anymore
+        })
+
+        // 2. Add 'realtime_input_config' as a sibling to 'setup'
+        put("realtime_input_config", JSONObject().apply {
+            put("automatic_activity_detection", JSONObject().put("silence_duration_ms", vadSilenceMs))
+        })
     }
+    
+    webSocket?.send(config.toString())
+    Log.d(TAG, "Sent corrected config message: $config")
+}
 
     fun sendAudio(base64Data: String) {
         val message = JSONObject().apply {
