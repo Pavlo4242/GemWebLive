@@ -99,6 +99,8 @@ class AudioHandler(
                 if (readResult > 0) {
                     val base64Data = Base64.encodeToString(audioBuffer, 0, readResult, Base64.NO_WRAP)
                     onAudioChunk(base64Data)
+                    Log.d(TAG, "Sending audio data chunk: ${base64Data.substring(0, 30)}...") 
+                    onAudioChunk(base64Data)
                 }
             }
         }
