@@ -1,10 +1,12 @@
 package com.gemweblive
 
+import android.util.Base64
 import android.util.Log
-import kotlinx.coroutines.*
-import okhttp3.*
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.Response
 import okhttp3.WebSocket
-import okhttp3.ByteString
+import okhttp3.WebSocketListener
 import org.json.JSONArray
 import org.json.JSONObject
 import okhttp3.logging.HttpLoggingInterceptor
@@ -120,9 +122,16 @@ class WebSocketClient(
         Log.d(TAG, "Sent config: ${config.toString(2)}")
     }
     
-    fun sendAudio(audioData: ByteArray) {
-        webSocket?.send(ByteString.of(*audioData))
+    fun sendAudio(base64Audio: String) {  // Changed parameter to String
+        try {
+            val audioBytes = Base64.decode(base64Audio, Base64.NO_WRAP)
+            webSocket?.send(okhttp3.ByteString.of(*audioBytes))
+            Log.d(TAG, "Sent audio chunk (${audioBytes.size} bytes)")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error decoding Base64 audio", e)
+        }
     }
+
 
     fun disconnect() {
         setupTimeoutJob?.cancel()
