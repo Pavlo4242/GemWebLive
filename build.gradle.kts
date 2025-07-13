@@ -1,8 +1,7 @@
 // build.gradle.kts
 buildscript {
     repositories {
-        google()
-        mavenCentral()
+        gradlePluginPortal()
     }
     dependencies {
         classpath("com.android.tools.build:gradle:8.2.2")
