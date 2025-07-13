@@ -37,6 +37,24 @@ class WebSocketClient(
         private const val TAG = "WebSocketClient"
     }
 
+    private fun sendConfigMessage() {
+        val config = JSONObject().apply {
+            put("setup", JSONObject().apply {
+                put("model", "models/$model")
+                put("generation_config", JSONObject().apply {
+                    put("response_modalities", JSONArray().put("AUDIO"))
+                })
+                put("input_audio_transcription", JSONObject())
+                put("output_audio_transcription", JSONObject())
+                put("system_instruction", JSONObject().put("parts", JSONArray().put(JSONObject().put("text", getSystemPrompt()))))
+                put("realtime_input_config", JSONObject().put("automatic_activity_detection", JSONObject().put("silence_duration_ms", vadSilenceMs)))
+            })
+        }
+        val configString = config.toString().replace("\\/", "/") // Undo escaping
+        webSocket?.send(configString)
+        Log.i(TAG, ">>> CORRECTED CONFIGURATION SENT:\n${JSONObject(configString).toString(2)}")
+    }
+
     fun connect() {
         if (isConnected) return
         Log.i(TAG, "Attempting to connect...")
@@ -93,7 +111,6 @@ class WebSocketClient(
         })
     }
 
-
     fun sendAudio(audioData: ByteArray) {
         if (!isReady()) return
         scope.launch {
@@ -126,6 +143,8 @@ class WebSocketClient(
     }
 
     fun isReady(): Boolean = isConnected && isSetupComplete
+
+
 
     private fun getSystemPrompt(): String {
         return """
