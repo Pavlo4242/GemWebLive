@@ -7,6 +7,8 @@ import okhttp3.*
 import org.json.JSONArray
 import org.json.JSONObject
 import okhttp3.logging.HttpLoggingInterceptor
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 
 class WebSocketClient(
@@ -20,30 +22,21 @@ class WebSocketClient(
 ) {
     private var webSocket: WebSocket? = null
     private var isSetupComplete = false
-    private var setupTimeoutJob: Job? = null // Now a class property
-    private val timeoutDuration = 10000L
+    private val scope = CoroutineScope(Executors.newSingleThreadExecutor().asCoroutineDispatcher())
 
     private val client = OkHttpClient.Builder()
+        .readTimeout(0, TimeUnit.MILLISECONDS)
         .addInterceptor(HttpLoggingInterceptor().apply { level = HttpLoggingInterceptor.Level.BODY })
         .build()
 
     companion object {
         private const val HOST = "generativelanguage.googleapis.com"
-        private const val API_KEY = "AIzaSyA-1jVnmef_LnMrM8xIuMKuX103ot_uHI4"
+        private const val API_KEY = "AIzaSyA-1jVnmef_LnMrM8xIuMKuX103ot_uHI4" // Ensure this is valid
         private const val TAG = "WebSocketClient"
     }
 
     fun connect() {
-        setupTimeoutJob = CoroutineScope(Dispatchers.IO).launch {
-            delay(timeoutDuration)
-            if (!isSetupComplete) {
-                Log.w(TAG, "Setup timeout reached")
-                withContext(Dispatchers.Main) {
-                    onFailure.invoke(TimeoutException("Server setup timed out"), null)
-                }
-                disconnect()
-            }
-        }
+        if (isConnected()) return
 
         val request = Request.Builder()
             .url("wss://$HOST/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=$API_KEY")
@@ -51,33 +44,41 @@ class WebSocketClient(
 
         webSocket = client.newWebSocket(request, object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
-                Log.i(TAG, "WebSocket opened")
-                sendConfigMessage()
-                onOpen()
+                scope.launch {
+                    Log.i(TAG, "WebSocket opened.")
+                    sendConfigMessage()
+                    onOpen()
+                }
             }
 
             override fun onMessage(webSocket: WebSocket, text: String) {
-                val response = JSONObject(text)
-                if (response.has("setupComplete") && response.getBoolean("setupComplete")) {
-                    isSetupComplete = true
-                    setupTimeoutJob?.cancel() // Now accessible
-                    Log.i(TAG, "Server setup complete.")
-                    onSetupComplete() // Now accessible
-                } else {
-                    onMessage(text)
+                scope.launch {
+                    Log.d(TAG, "Server message received: ${text.take(500)}")
+                    val response = JSONObject(text)
+                    if (response.has("setupComplete") && response.getBoolean("setupComplete")) {
+                        if (!isSetupComplete) {
+                            isSetupComplete = true
+                            Log.i(TAG, "Server setup complete message received!")
+                            onSetupComplete()
+                        }
+                    } else {
+                        onMessage(text)
+                    }
                 }
             }
 
             override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
-                Log.i(TAG, "WebSocket closing: $code $reason")
-                setupTimeoutJob?.cancel() // Now accessible
-                onClosing(code, reason)
+                scope.launch {
+                    Log.i(TAG, "WebSocket closing: $code - $reason")
+                    onClosing(code, reason)
+                }
             }
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-                Log.e(TAG, "WebSocket failure", t)
-                setupTimeoutJob?.cancel() // Now accessible
-                onFailure(t, response)
+                scope.launch {
+                    Log.e(TAG, "WebSocket failure: ${t.message}", t)
+                    onFailure(t, response)
+                }
             }
         })
     }
@@ -91,40 +92,41 @@ class WebSocketClient(
                 })
                 put("input_audio_transcription", JSONObject())
                 put("output_audio_transcription", JSONObject())
-                put("system_instruction", JSONObject().apply {
-                    put("parts", JSONArray().put(JSONObject().put("text", getSystemPrompt())))
-                })
-                put("realtime_input_config", JSONObject().apply {
-                    put("automatic_activity_detection", JSONObject().put("silence_duration_ms", vadSilenceMs))
-                })
+                put("system_instruction", JSONObject().put("parts", JSONArray().put(JSONObject().put("text", getSystemPrompt()))))
+                put("realtime_input_config", JSONObject().put("automatic_activity_detection", JSONObject().put("silence_duration_ms", vadSilenceMs)))
             })
         }
         webSocket?.send(config.toString())
-        Log.d(TAG, "Sent config message")
+        Log.d(TAG, "Config message sent.")
     }
 
     fun sendAudio(audioData: ByteArray) {
         if (isReady()) {
-            val realtimeInput = JSONObject().apply {
-                put("realtime_input", JSONObject().apply {
-                    put("audio", JSONObject().apply {
-                        put("data", Base64.encodeToString(audioData, Base64.NO_WRAP))
-                        put("mime_type", "audio/pcm;rate=16000")
+            scope.launch {
+                val realtimeInput = JSONObject().apply {
+                    put("realtime_input", JSONObject().apply {
+                        put("audio", JSONObject().apply {
+                            put("data", Base64.encodeToString(audioData, Base64.NO_WRAP))
+                            put("mime_type", "audio/pcm;rate=16000")
+                        })
                     })
-                })
+                }
+                webSocket?.send(realtimeInput.toString())
             }
-            webSocket?.send(realtimeInput.toString())
         }
     }
 
     fun disconnect() {
-        setupTimeoutJob?.cancel()
-        webSocket?.close(1000, "User disconnected")
+        scope.launch {
+            webSocket?.close(1000, "User disconnected")
+            webSocket = null
+            isSetupComplete = false
+        }
     }
 
     fun isConnected(): Boolean = webSocket != null
-    private fun isReady(): Boolean = isConnected() && isSetupComplete
-    
+    fun isReady(): Boolean = isSetupComplete && isConnected()
+
     private fun getSystemPrompt(): String {
         return """
         ### **LLM System Prompt: Bilingual Live Thai-English Interpreter (Pattaya Bar Scene)**
