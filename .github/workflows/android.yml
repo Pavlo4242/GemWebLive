@@ -40,6 +40,9 @@ jobs:
         yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
         $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.0"
 
+    - name: Generate gradlew
+      run: ./gradlew wrapper --gradle-version 8.0  # Or your preferred version
+
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
 
