@@ -106,19 +106,25 @@ private fun connect() {
     // Reset the setup complete flag on each new connection attempt
     isServerSetupComplete = false
 
+private fun connect() {
+    isServerSetupComplete = false
+    
     webSocketClient = WebSocketClient(
         model = selectedModel,
         vadSilenceMs = getVadSensitivity(),
         onOpen = {
             mainScope.launch {
                 isConnected = true
-                // The UI now correctly shows it's waiting for the server's specific confirmation
                 updateStatus("Awaiting server setup...")
                 updateUI()
+                Log.d(TAG, "WebSocket opened, sending config...") // Add this
             }
         },
         onMessage = { text ->
-            mainScope.launch { processServerMessage(text) }
+            mainScope.launch {
+                Log.d(TAG, "Raw message: $text") // Add this
+                processServerMessage(text)
+            }
         },
         onClosing = { code, reason ->
             mainScope.launch {
@@ -141,66 +147,76 @@ private fun connect() {
 }
 
 private fun processServerMessage(text: String) {
-    Log.d(TAG, "Received: $text")
+    Log.d(TAG, "RAW MESSAGE: ${text.take(500)}") // Log first 500 chars of raw message
+    
     try {
         val response = JSONObject(text)
+        Log.d(TAG, "PARSED JSON KEYS: ${response.keys().joinToString()}")
 
-        // Handles each possible top-level key individually for robustness
         when {
-            // Case 1: The server confirms the session is set up.
             response.has("setupComplete") -> {
-                isServerSetupComplete = true
+                isServerSetupComplete = response.getBoolean("setupComplete")
+                Log.i(TAG, "SERVER SETUP COMPLETE: $isServerSetupComplete")
                 updateStatus("Connected. Click 'Start Listening'.")
                 updateUI()
-                Log.i(TAG, "Server setup is complete.")
+                
+                // Debug: Log full setupComplete response
+                Log.d(TAG, "SETUP COMPLETE DETAILS: ${response.toString(2)}")
             }
 
-            // Case 2: The server sends a block of content, which might include various parts.
             response.has("serverContent") -> {
                 val serverContent = response.getJSONObject("serverContent")
-                // Check for nested transcriptions, as they can still appear here
-                serverContent.optJSONObject("inputTranscription")?.optString("text")?.let {
-                    translationAdapter.addOrUpdateTranslation(it, true)
+                Log.d(TAG, "SERVER CONTENT KEYS: ${serverContent.keys().joinToString()}")
+                
+                serverContent.optJSONObject("inputTranscription")?.let { 
+                    Log.d(TAG, "INPUT TRANS: ${it.toString(2)}")
+                    it.optString("text")?.let { text ->
+                        translationAdapter.addOrUpdateTranslation(text, true)
+                    }
                 }
-                serverContent.optJSONObject("outputTranscription")?.optString("text")?.let {
-                    translationAdapter.addOrUpdateTranslation(it, false)
+                
+                serverContent.optJSONObject("outputTranscription")?.let {
+                    Log.d(TAG, "OUTPUT TRANS: ${it.toString(2)}")
+                    it.optString("text")?.let { text ->
+                        translationAdapter.addOrUpdateTranslation(text, false)
+                    }
                 }
-                 // Future logic to handle other serverContent parts (like audio) would go here.
             }
             
-            // Case 3: The server sends a standalone input transcription.
             response.has("inputTranscription") -> {
-                response.getJSONObject("inputTranscription").optString("text")?.let {
+                val input = response.getJSONObject("inputTranscription")
+                Log.d(TAG, "STANDALONE INPUT: ${input.toString(2)}")
+                input.optString("text")?.let {
                     translationAdapter.addOrUpdateTranslation(it, true)
                 }
             }
 
-            // Case 4: The server sends a standalone output transcription.
             response.has("outputTranscription") -> {
-                 response.getJSONObject("outputTranscription").optString("text")?.let {
+                val output = response.getJSONObject("outputTranscription")
+                Log.d(TAG, "STANDALONE OUTPUT: ${output.toString(2)}")
+                output.optString("text")?.let {
                     translationAdapter.addOrUpdateTranslation(it, false)
                 }
             }
 
-            // Case 5: The server reports an error.
             response.has("error") -> {
-                val error = response.getJSONObject("error").getString("message")
-                showError("API Error: $error")
+                val error = response.getJSONObject("error")
+                Log.e(TAG, "SERVER ERROR: ${error.toString(2)}")
+                showError("API Error: ${error.getString("message")}")
             }
 
-            // Case 6: Handle other valid but currently unused message types gracefully.
-            response.has("usageMetadata") || response.has("toolCall") || response.has("goAway") -> {
-                 Log.d(TAG, "Received unhandled message type: ${response.keys().next()}")
+            else -> {
+                Log.w(TAG, "UNHANDLED MESSAGE TYPE. FULL MESSAGE:\n${response.toString(2)}")
             }
         }
         
-        // After processing any message that updates the UI, scroll to the latest entry.
+        // Scroll handling remains the same
         if (response.has("inputTranscription") || response.has("outputTranscription") || response.has("serverContent")) {
-             binding.transcriptLog.scrollToPosition(0)
+            binding.transcriptLog.scrollToPosition(0)
         }
 
     } catch (e: Exception) {
-        Log.e(TAG, "Error parsing server message", e)
+        Log.e(TAG, "MESSAGE PARSING ERROR. Original text: $text", e)
     }
 }
     private fun toggleListening() {
