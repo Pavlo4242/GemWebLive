@@ -129,7 +129,10 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         )
-        webSocketClient.connect()
+        // Launch the connection on a background thread
+        mainScope.launch(Dispatchers.IO) {
+            webSocketClient.connect()
+        }
     }
 
     private fun processServerMessage(text: String) {
