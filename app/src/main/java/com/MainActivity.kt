@@ -105,34 +105,64 @@ class MainActivity : AppCompatActivity() {
 
     private fun connect() {
         isServerSetupComplete = false
-        
-        webSocketClient = WebSocketClient(
-            model = selectedModel,
-            vadSilenceMs = getVadSensitivity(),
-            onOpen = {
-                mainScope.launch {
-                    isConnected = true
-                    updateStatus("Awaiting server setup...")
-                    updateUI()
+            webSocketClient = WebSocketClient(
+                model = selectedModel,
+                vadSilenceMs = getVadSensitivity(),
+                onOpen = {
+                    mainScope.launch {
+                        isConnected = true
+                        updateStatus("Awaiting server setup...")
+                        updateUI()
+                        Log.d(TAG, "WebSocket opened, sending config...")
+                    }
+                },
+                onMessage = { text ->
+                    mainScope.launch {
+                        Log.d(TAG, "Raw message: $text")
+                        try {
+                            val response = JSONObject(text)
+                            
+                            if (response.has("setupComplete")) {
+                                isServerSetupComplete = response.getBoolean("setupComplete")
+                                updateStatus("Connected. Click 'Start Listening'.")
+                                updateUI()
+                                return@launch
+                            }
+            
+                            response.optJSONObject("serverContent")?.let { serverContent ->
+                                // Input transcription
+                                serverContent.optJSONObject("inputTranscription")?.let { 
+                                    it.optString("text")?.let { text ->
+                                        translationAdapter.addOrUpdateTranslation(text, true)
+                                    }
+                                }
+                                
+                                // Output translation
+                                serverContent.optJSONObject("outputTranscription")?.let {
+                                    it.optString("text")?.let { text ->
+                                        translationAdapter.addOrUpdateTranslation(text, false)
+                                    }
+                                }
+                            }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error processing message", e)
+                        }
+                    }
+                },
+                onClosing = { code, reason ->
+                    mainScope.launch {
+                        Log.d(TAG, "WebSocket Closing: $code $reason")
+                        teardownSession()
+                    }
+                },
+                onFailure = { t, response ->
+                    mainScope.launch {
+                        Log.e(TAG, "WebSocket Failure: ${t.message}", t)
+                        showError("Connection failed: ${t.message}")
+                        teardownSession()
+                    }
                 }
-            },
-            onMessage = { text ->
-                mainScope.launch {
-                    processServerMessage(text)
-                }
-            },
-            onClosing = { code, reason ->
-                mainScope.launch {
-                    teardownSession()
-                }
-            },
-            onFailure = { t, response ->
-                mainScope.launch {
-                    showError("Connection failed: ${t.message}")
-                    teardownSession()
-                }
-            }
-        )
+            )
         
         mainScope.launch(Dispatchers.IO) {
             webSocketClient.connect()
