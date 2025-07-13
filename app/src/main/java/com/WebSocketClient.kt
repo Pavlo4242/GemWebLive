@@ -107,10 +107,15 @@ class WebSocketClient(
                 put("realtime_input_config", JSONObject().put("automatic_activity_detection", JSONObject().put("silence_duration_ms", vadSilenceMs)))
             })
         }
-        webSocket?.send(config.toString())
-        Log.i(TAG, ">>> CONFIGURATION SENT:\n${config.toString(2)}")
+        // Convert to string and then manually un-escape the forward slash.
+    val configString = config.toString().replace("\\/", "/")
 
-    }
+    webSocket?.send(configString)
+    
+    // Log the corrected string that is actually being sent.
+    Log.i(TAG, ">>> CORRECTED CONFIGURATION SENT:\n${JSONObject(configString).toString(2)}")
+}
+     
 
     fun sendAudio(audioData: ByteArray) {
         if (!isReady()) return
