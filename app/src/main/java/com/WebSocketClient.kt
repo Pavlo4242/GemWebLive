@@ -4,6 +4,7 @@ import android.util.Log
 import kotlinx.coroutines.*
 import okhttp3.*
 import okhttp3.WebSocket
+import okhttp3.ByteString
 import org.json.JSONArray
 import org.json.JSONObject
 import okhttp3.logging.HttpLoggingInterceptor
@@ -118,9 +119,9 @@ class WebSocketClient(
         webSocket?.send(config.toString())
         Log.d(TAG, "Sent config: ${config.toString(2)}")
     }
-
+    
     fun sendAudio(audioData: ByteArray) {
-        webSocket?.send(okhttp3.ByteString.of(*audioData))
+        webSocket?.send(ByteString.of(*audioData))
     }
 
     fun disconnect() {
