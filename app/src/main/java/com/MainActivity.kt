@@ -211,7 +211,7 @@ class MainActivity : AppCompatActivity() {
      private fun updateUI() {
         binding.micBtn.isEnabled = true
         if (!isConnected) {
-            binding.micBtnText.text = "Connect"
+            binding.micBtn.text = "Connect"
             binding.settingsBtn.text = "Settings"
             binding.interimDisplay.visibility = View.GONE
             binding.modelSpinner.isEnabled = true
@@ -219,10 +219,10 @@ class MainActivity : AppCompatActivity() {
             binding.modelSpinner.isEnabled = false
             binding.settingsBtn.text = "Disconnect"
             if (isListening) {
-                binding.micBtnText.text = "Stop"
+                binding.micBtn.text = "Stop"
                 binding.interimDisplay.visibility = View.VISIBLE
             } else {
-                binding.micBtnText.text = "Start Listening"
+                binding.micBtn.text = "Start Listening"
                 binding.interimDisplay.visibility = View.GONE
             }
         }
