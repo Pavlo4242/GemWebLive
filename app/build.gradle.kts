@@ -5,7 +5,7 @@ plugins {
 
 android {
     namespace = "com.gemweblive"
-    compileSdk = 36
+    compileSdk = 34
 
     defaultConfig {
         applicationId = "com.gemweblive"
