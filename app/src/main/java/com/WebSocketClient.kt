@@ -92,36 +92,26 @@ class WebSocketClient(
             }
         })
     }
-
 private fun sendConfigMessage() {
-    val gson = GsonBuilder()
-        .disableHtmlEscaping() // Critical: Prevents \/ escaping
-        .create()
-
-    val config = mapOf(
-        "setup" to mapOf(
-            "model" to "models/$model",
-            "generation_config" to mapOf(
-                "response_modalities" to listOf("AUDIO")
-            ),
-            "input_audio_transcription" to emptyMap<String, Any>(),
-            "output_audio_transcription" to emptyMap<String, Any>(),
-            "system_instruction" to mapOf(
-                "parts" to listOf(
-                    mapOf("text" to getSystemPrompt())
-                )
-            ),
-            "realtime_input_config" to mapOf(
-                "automatic_activity_detection" to mapOf(
-                    "silence_duration_ms" to vadSilenceMs
-                )
-            )
-        )
-    )
-
-    val configString = gson.toJson(config)
+    val config = JSONObject().apply {
+        put("setup", JSONObject().apply {
+            put("model", "models/$model".replace("/", "\\/"))
+                
+                put("generation_config", JSONObject().apply {
+                    put("response_modalities", JSONArray().put("AUDIO"))
+                })
+                put("input_audio_transcription", JSONObject())
+                put("output_audio_transcription", JSONObject())
+                put("system_instruction", JSONObject().put("parts", JSONArray().put(JSONObject().put("text", getSystemPrompt()))))
+                put("realtime_input_config", JSONObject().put("automatic_activity_detection", JSONObject().put("silence_duration_ms", vadSilenceMs)))
+            })
+        }
+    val configString = config.toString().replace("\\/", "/") // Undo escaping
     webSocket?.send(configString)
-    Log.i(TAG, ">>> CONFIG SENT (Gson):\n${gson.toJson(config)}")
+}
+    
+    // Log the corrected string that is actually being sent.
+    Log.i(TAG, ">>> CORRECTED CONFIGURATION SENT:\n${JSONObject(configString).toString(2)}")
 }
      
 
