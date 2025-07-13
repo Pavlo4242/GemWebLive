@@ -92,28 +92,7 @@ class WebSocketClient(
             }
         })
     }
-private fun sendConfigMessage() {
-    val config = JSONObject().apply {
-        put("setup", JSONObject().apply {
-            put("model", "models/$model".replace("/", "\\/"))
-                
-                put("generation_config", JSONObject().apply {
-                    put("response_modalities", JSONArray().put("AUDIO"))
-                })
-                put("input_audio_transcription", JSONObject())
-                put("output_audio_transcription", JSONObject())
-                put("system_instruction", JSONObject().put("parts", JSONArray().put(JSONObject().put("text", getSystemPrompt()))))
-                put("realtime_input_config", JSONObject().put("automatic_activity_detection", JSONObject().put("silence_duration_ms", vadSilenceMs)))
-            })
-        }
-    val configString = config.toString().replace("\\/", "/") // Undo escaping
-    webSocket?.send(configString)
-}
-    
-    // Log the corrected string that is actually being sent.
-    Log.i(TAG, ">>> CORRECTED CONFIGURATION SENT:\n${JSONObject(configString).toString(2)}")
-}
-     
+
 
     fun sendAudio(audioData: ByteArray) {
         if (!isReady()) return
