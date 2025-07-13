@@ -147,7 +147,7 @@ class MainActivity : AppCompatActivity() {
         
         try {
             val response = JSONObject(text)
-            Log.d(TAG, "PARSED JSON KEYS: ${response.keys().joinToString()}")
+            Log.d(TAG, "PARSED JSON KEYS: ${response.keys().toList().joinToString()}") // Fixed joinToString
 
             when {
                 response.has("setupComplete") -> {
@@ -161,7 +161,7 @@ class MainActivity : AppCompatActivity() {
 
                 response.has("serverContent") -> {
                     val serverContent = response.getJSONObject("serverContent")
-                    Log.d(TAG, "SERVER CONTENT KEYS: ${serverContent.keys().joinToString()}")
+                    Log.d(TAG, "SERVER CONTENT KEYS: ${serverContent.keys().toList().joinToString()}") // Fixed joinToString
                     
                     serverContent.optJSONObject("inputTranscription")?.let { 
                         Log.d(TAG, "INPUT TRANS: ${it.toString(2)}")
