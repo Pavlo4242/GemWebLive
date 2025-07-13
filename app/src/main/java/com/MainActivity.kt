@@ -105,64 +105,40 @@ class MainActivity : AppCompatActivity() {
 
     private fun connect() {
         isServerSetupComplete = false
-            webSocketClient = WebSocketClient(
-                model = selectedModel,
-                vadSilenceMs = getVadSensitivity(),
-                onOpen = {
-                    mainScope.launch {
-                        isConnected = true
-                        updateStatus("Awaiting server setup...")
-                        updateUI()
-                        Log.d(TAG, "WebSocket opened, sending config...")
-                    }
-                },
-                onMessage = { text ->
-                    mainScope.launch {
-                        Log.d(TAG, "Raw message: $text")
-                        try {
-                            val response = JSONObject(text)
-                            
-                            if (response.has("setupComplete")) {
-                                isServerSetupComplete = response.getBoolean("setupComplete")
-                                updateStatus("Connected. Click 'Start Listening'.")
-                                updateUI()
-                                return@launch
-                            }
-            
-                            response.optJSONObject("serverContent")?.let { serverContent ->
-                                // Input transcription
-                                serverContent.optJSONObject("inputTranscription")?.let { 
-                                    it.optString("text")?.let { text ->
-                                        translationAdapter.addOrUpdateTranslation(text, true)
-                                    }
-                                }
-                                
-                                // Output translation
-                                serverContent.optJSONObject("outputTranscription")?.let {
-                                    it.optString("text")?.let { text ->
-                                        translationAdapter.addOrUpdateTranslation(text, false)
-                                    }
-                                }
-                            }
-                        } catch (e: Exception) {
-                            Log.e(TAG, "Error processing message", e)
-                        }
-                    }
-                },
-                onClosing = { code, reason ->
-                    mainScope.launch {
-                        Log.d(TAG, "WebSocket Closing: $code $reason")
-                        teardownSession()
-                    }
-                },
-                onFailure = { t, response ->
-                    mainScope.launch {
-                        Log.e(TAG, "WebSocket Failure: ${t.message}", t)
-                        showError("Connection failed: ${t.message}")
-                        teardownSession()
-                    }
+        
+        webSocketClient = WebSocketClient(
+            model = selectedModel,
+            vadSilenceMs = getVadSensitivity(),
+            onOpen = {
+                mainScope.launch {
+                    isConnected = true
+                    updateStatus("Awaiting server setup...")
                 }
-            )
+            },
+            onMessage = { text ->
+                mainScope.launch {
+                    processServerMessage(text)
+                }
+            },
+            onClosing = { _, _ ->
+                mainScope.launch {
+                    teardownSession()
+                }
+            },
+            onFailure = { t, _ ->
+                mainScope.launch {
+                    showError("Connection failed: ${t.message}")
+                    teardownSession()
+                }
+            },
+            onSetupComplete = {
+                mainScope.launch {
+                    isServerSetupComplete = true
+                    updateStatus("Connected. Click 'Start Listening'.")
+                    updateUI()
+                }
+            }
+        )
         
         mainScope.launch(Dispatchers.IO) {
             webSocketClient.connect()
@@ -174,11 +150,6 @@ class MainActivity : AppCompatActivity() {
             val response = JSONObject(text)
             
             when {
-                response.has("setupComplete") -> {
-                    isServerSetupComplete = response.getBoolean("setupComplete")
-                    updateStatus("Connected. Click 'Start Listening'.")
-                    updateUI()
-                }
                 response.has("serverContent") -> {
                     val serverContent = response.getJSONObject("serverContent")
                     serverContent.optJSONObject("inputTranscription")?.let { 
@@ -219,6 +190,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun toggleListening() {
+        if (!isServerSetupComplete) {
+            Toast.makeText(this, "Please wait for the server to be ready.", Toast.LENGTH_SHORT).show()
+            return
+        }
         isListening = !isListening
         if (isListening) {
             startAudio()
@@ -232,7 +207,7 @@ class MainActivity : AppCompatActivity() {
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
             audioHandler = AudioHandler(this) { audioData ->
                 if (isListening && ::webSocketClient.isInitialized && webSocketClient.isConnected()) {
-                    webSocketClient.sendAudio(audioData)
+                    webSocketClient.sendAudio(audioData.toByteArray())
                 }
             }
             audioHandler.startRecording()
@@ -263,24 +238,22 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateUI() {
-        binding.micBtn.isEnabled = isServerSetupComplete
+        binding.micBtn.isEnabled = isConnected
 
         if (!isConnected) {
             binding.micBtn.text = "Connect"
-            binding.micBtn.isEnabled = true
             binding.settingsBtn.text = "Settings"
             binding.interimDisplay.visibility = View.GONE
             binding.modelSpinner.isEnabled = true
         } else {
             binding.modelSpinner.isEnabled = false
             binding.settingsBtn.text = "Disconnect"
-            if (isListening) {
-                binding.micBtn.text = "Stop"
-                binding.interimDisplay.visibility = View.VISIBLE
+            if (isServerSetupComplete) {
+                binding.micBtn.text = if (isListening) "Stop" else "Start Listening"
             } else {
-                binding.micBtn.text = "Start Listening"
-                binding.interimDisplay.visibility = View.GONE
+                binding.micBtn.text = "Connecting..."
             }
+            binding.interimDisplay.visibility = if (isListening) View.VISIBLE else View.GONE
         }
     }
 
