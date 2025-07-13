@@ -23,8 +23,8 @@ jobs:
     # and adds caching for you automatically.
     - name: Setup Gradle and Cache
       uses: gradle/actions/setup-gradle@v3
-        with:
-          gradle-version: '8.2'
+      with:
+        gradle-version: '8.2'
 
     - name: Setup Python
       uses: actions/setup-python@v5
