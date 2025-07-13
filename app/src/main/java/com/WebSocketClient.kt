@@ -16,27 +16,30 @@ class WebSocketClient(
     private val onOpen: () -> Unit,
     private val onMessage: (String) -> Unit,
     private val onClosing: (Int, String) -> Unit,
-    private val onFailure: (Throwable, Response?) -> Unit,
+    private val onFailure: (Throwable) -> Unit,
     private val onSetupComplete: () -> Unit
 ) {
     private var webSocket: WebSocket? = null
-    private var isSetupComplete = false
-    // Use a dedicated single-thread dispatcher to ensure serial execution of all WebSocket callbacks.
+    @Volatile private var isSetupComplete = false
+    @Volatile private var isConnected = false
+
+    // A dedicated single-thread dispatcher ensures all WebSocket events are processed serially off the main thread.
     private val scope = CoroutineScope(Executors.newSingleThreadExecutor().asCoroutineDispatcher())
 
     private val client = OkHttpClient.Builder()
-        .readTimeout(0, TimeUnit.MILLISECONDS) // Important for long-lived connections
+        .readTimeout(0, TimeUnit.MILLISECONDS) // Essential for persistent WebSockets
         .addInterceptor(HttpLoggingInterceptor().apply { level = HttpLoggingInterceptor.Level.BODY })
         .build()
 
     companion object {
         private const val HOST = "generativelanguage.googleapis.com"
-        private const val API_KEY = "AIzaSyA-1jVnmef_LnMrM8xIuMKuX103ot_uHI4"
+        private const val API_KEY = "AIzaSyA-1jVnmef_LnMrM8xIuMKuX103ot_uHI4" // Replace with your actual key
         private const val TAG = "WebSocketClient"
     }
 
     fun connect() {
-        if (isConnected()) return
+        if (isConnected) return
+        Log.d(TAG, "Attempting to connect...")
 
         val request = Request.Builder()
             .url("wss://$HOST/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=$API_KEY")
@@ -44,9 +47,9 @@ class WebSocketClient(
 
         webSocket = client.newWebSocket(request, object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
-                // All callbacks are launched in the dedicated scope.
                 scope.launch {
                     Log.i(TAG, "WebSocket connection opened.")
+                    isConnected = true
                     sendConfigMessage()
                     onOpen()
                 }
@@ -54,20 +57,20 @@ class WebSocketClient(
 
             override fun onMessage(webSocket: WebSocket, text: String) {
                 scope.launch {
-                    Log.d(TAG, "Raw message from server: ${text.take(500)}")
+                    Log.d(TAG, "Server message: ${text.take(500)}")
                     try {
                         val response = JSONObject(text)
                         if (response.has("setupComplete") && response.getBoolean("setupComplete")) {
                             if (!isSetupComplete) {
                                 isSetupComplete = true
-                                Log.i(TAG, ">>> Server Setup Complete! <<<")
+                                Log.i(TAG, ">>> Server setup is complete! <<<")
                                 onSetupComplete()
                             }
                         } else {
                             onMessage(text)
                         }
                     } catch (e: Exception) {
-                        Log.e(TAG, "Failed to parse server message as JSON", e)
+                        Log.e(TAG, "Error parsing server JSON", e)
                     }
                 }
             }
@@ -75,14 +78,16 @@ class WebSocketClient(
             override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
                 scope.launch {
                     Log.w(TAG, "WebSocket is closing: $code - $reason")
+                    cleanup()
                     onClosing(code, reason)
                 }
             }
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
                 scope.launch {
-                    Log.e(TAG, "WebSocket failure", t)
-                    onFailure(t, response)
+                    Log.e(TAG, "WebSocket failure: ${t.message}", t)
+                    cleanup()
+                    onFailure(t)
                 }
             }
         })
@@ -102,39 +107,43 @@ class WebSocketClient(
             })
         }
         webSocket?.send(config.toString())
-        Log.d(TAG, "Configuration message sent.")
+        Log.d(TAG, "Configuration message has been sent.")
     }
 
     fun sendAudio(audioData: ByteArray) {
-        if (isReady()) {
-            scope.launch {
-                val realtimeInput = JSONObject().apply {
-                    put("realtime_input", JSONObject().apply {
-                        put("audio", JSONObject().apply {
-                            put("data", Base64.encodeToString(audioData, Base64.NO_WRAP))
-                            put("mime_type", "audio/pcm;rate=16000")
-                        })
+        if (!isReady()) return
+        scope.launch {
+            val realtimeInput = JSONObject().apply {
+                put("realtime_input", JSONObject().apply {
+                    put("audio", JSONObject().apply {
+                        put("data", Base64.encodeToString(audioData, Base64.NO_WRAP))
+                        put("mime_type", "audio/pcm;rate=16000")
                     })
-                }
-                webSocket?.send(realtimeInput.toString())
+                })
             }
+            webSocket?.send(realtimeInput.toString())
         }
     }
-
+    
     fun disconnect() {
         scope.launch {
-            Log.w(TAG, "Disconnect called.")
-            webSocket?.close(1000, "User initiated disconnect.")
-            webSocket = null
-            isSetupComplete = false
+            cleanup()
         }
     }
 
-    fun isConnected(): Boolean = webSocket != null
-    fun isReady(): Boolean = isSetupComplete && isConnected()
+    private fun cleanup() {
+        if (isConnected) {
+            Log.w(TAG, "Cleaning up WebSocket connection.")
+            webSocket?.close(1000, "User initiated disconnect.")
+            webSocket = null
+        }
+        isConnected = false
+        isSetupComplete = false
+    }
+
+    fun isReady(): Boolean = isConnected && isSetupComplete
 
     private fun getSystemPrompt(): String {
-        // System prompt remains the same
         return """
         ### **LLM System Prompt: Bilingual Live Thai-English Interpreter (Pattaya Bar Scene)**
         
