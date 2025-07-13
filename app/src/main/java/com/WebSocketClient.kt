@@ -1,6 +1,7 @@
 package com.gemweblive
 
 import android.util.Log
+import kotlinx.coroutines.*
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
@@ -9,7 +10,6 @@ import okhttp3.WebSocketListener
 import org.json.JSONArray
 import org.json.JSONObject
 import okhttp3.logging.HttpLoggingInterceptor
-import kotlinx.coroutines.*
 import java.util.concurrent.TimeoutException
 
 class WebSocketClient(
@@ -123,6 +123,10 @@ class WebSocketClient(
         Log.d(TAG, "Sent config: ${config.toString(2)}")
     }
 
+    fun sendAudio(audioData: ByteArray) {
+        webSocket?.send(audioData)
+    }
+
     fun disconnect() {
         setupTimeoutJob?.cancel()
         webSocket?.close(1000, "User disconnected")
@@ -133,6 +137,7 @@ class WebSocketClient(
     fun isConnected(): Boolean = webSocket != null
     fun isReady(): Boolean = isConnected() && isSetupComplete
 
+    
     private fun getSystemPrompt(): String {
     // Replace the content here with the full prompt from WorkingAudioD.html
     return """|### **LLM System Prompt: Bilingual Live Thai-English Interpreter (Pattaya Bar Scene)**
