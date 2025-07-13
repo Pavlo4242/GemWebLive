@@ -124,7 +124,7 @@ class WebSocketClient(
     }
 
     fun sendAudio(audioData: ByteArray) {
-        webSocket?.send(audioData)
+        webSocket?.send(okhttp3.ByteString.of(*audioData))
     }
 
     fun disconnect() {
