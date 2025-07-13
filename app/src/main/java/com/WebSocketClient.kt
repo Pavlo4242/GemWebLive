@@ -42,7 +42,8 @@ class WebSocketClient(
         private const val TAG = "WebSocketClient"
     }
 
-    private fun sendConfigMessage() {
+private fun sendConfigMessage() {
+    try {
         val config = mapOf(
             "setup" to mapOf(
                 "model" to "models/$model",
@@ -63,9 +64,14 @@ class WebSocketClient(
                 )
             )
         )
-        webSocket?.send(gson.toJson(config))
+        
+        val configString = gson.toJson(config)
+        Log.i(TAG, "Sending config: $configString") // Add debug log
+        webSocket?.send(configString)
+    } catch (e: Exception) {
+        Log.e(TAG, "Failed to send config", e)
     }
-
+}
     fun connect() {
         if (isConnected) return
         Log.i(TAG, "Attempting to connect...")
