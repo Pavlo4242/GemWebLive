@@ -24,15 +24,15 @@ class MainActivity : AppCompatActivity() {
 
     private val mainScope = CoroutineScope(Dispatchers.Main)
 
-    // Simplified state flags managed by the activity
+    // State flags
     @Volatile private var isListening = false
     @Volatile private var isSessionActive = false
     @Volatile private var isServerReady = false
 
     private val models = listOf(
-        "gemini-2.5-flash-preview-native-audio-dialog",
-        "gemini-2.0-flash-live-001",
-        "gemini-live-2.5-flash-preview"
+        "gemini-1.5-pro",
+        "gemini-1.0-pro",
+        "gemini-1.5-flash"
     )
     private var selectedModel = models[0]
 
@@ -63,7 +63,7 @@ class MainActivity : AppCompatActivity() {
                 if (selectedModel != models[position]) {
                     selectedModel = models[position]
                     if (isSessionActive) {
-                        Toast.makeText(this@MainActivity, "Applying new model...", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this@MainActivity, "Changing model requires reconnect", Toast.LENGTH_SHORT).show()
                         teardownSession(reconnect = true)
                     }
                 }
@@ -73,7 +73,7 @@ class MainActivity : AppCompatActivity() {
 
         binding.micBtn.setOnClickListener { handleMasterButton() }
         binding.settingsBtn.setOnClickListener { handleSettingsDisconnectButton() }
-        updateUI() // Set initial state
+        updateUI()
     }
 
     private fun prepareNewClient() {
@@ -90,25 +90,28 @@ class MainActivity : AppCompatActivity() {
             onMessage = { text ->
                 mainScope.launch { processServerMessage(text) }
             },
-            onClosing = { _, _ ->
-                mainScope.launch { teardownSession() }
+            onClosing = { code, reason ->
+                mainScope.launch {
+                    Log.w(TAG, "WebSocket closing: $code - $reason")
+                    teardownSession()
+                }
             },
             onFailure = { t ->
                 mainScope.launch {
-                    showError("Error: ${t.message}")
+                    showError("Connection error: ${t.message}")
                     teardownSession()
                 }
             },
             onSetupComplete = {
                 mainScope.launch {
                     isServerReady = true
-                    updateStatus("Ready to listen.")
+                    updateStatus("Ready to listen")
                     updateUI()
                 }
             }
         )
     }
-    
+
     private fun handleMasterButton() {
         if (!isSessionActive) {
             connect()
@@ -116,7 +119,7 @@ class MainActivity : AppCompatActivity() {
             toggleListening()
         }
     }
-    
+
     private fun handleSettingsDisconnectButton() {
         if (isSessionActive) {
             teardownSession()
@@ -124,12 +127,12 @@ class MainActivity : AppCompatActivity() {
             showSettingsDialog()
         }
     }
-    
+
     private fun showSettingsDialog() {
         val dialog = SettingsDialog(this, getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE))
         dialog.show()
     }
-    
+
     private fun getVadSensitivity(): Int {
         return getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE).getInt("vad_sensitivity_ms", 800)
     }
@@ -143,14 +146,24 @@ class MainActivity : AppCompatActivity() {
 
     private fun processServerMessage(text: String) {
         try {
-            val response = JSONObject(text)
-            // This logic can be expanded based on message types
-            response.optJSONObject("serverContent")?.let { content ->
-                content.optJSONObject("inputTranscription")?.optString("text")?.let {
-                    translationAdapter.addOrUpdateTranslation(it, true)
+            val json = JSONObject(text)
+            when {
+                json.has("serverContent") -> {
+                    val content = json.getJSONObject("serverContent")
+                    content.optJSONArray("parts")?.let { parts ->
+                        val textContent = parts.joinToString("\n") { part ->
+                            part.optString("text", "")
+                        }
+                        if (textContent.isNotEmpty()) {
+                            translationAdapter.addOrUpdateTranslation(textContent, false)
+                        }
+                    }
                 }
-                content.optJSONObject("outputTranscription")?.optString("text")?.let {
-                    translationAdapter.addOrUpdateTranslation(it, false)
+                json.has("inputTranscription") -> {
+                    val transcription = json.getJSONObject("inputTranscription")
+                    transcription.optString("text")?.let {
+                        translationAdapter.addOrUpdateTranslation(it, true)
+                    }
                 }
             }
         } catch (e: Exception) {
@@ -168,7 +181,7 @@ class MainActivity : AppCompatActivity() {
     private fun startAudio() {
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             checkPermissions()
-            isListening = false // Can't listen without permission
+            isListening = false
             return
         }
         audioHandler = AudioHandler(this) { audioData ->
@@ -184,7 +197,7 @@ class MainActivity : AppCompatActivity() {
         if (::audioHandler.isInitialized) {
             audioHandler.stopRecording()
         }
-        updateStatus("Paused.")
+        updateStatus("Ready to listen")
     }
 
     private fun teardownSession(reconnect: Boolean = false) {
@@ -201,10 +214,10 @@ class MainActivity : AppCompatActivity() {
 
         mainScope.launch {
             if (!reconnect) {
-                 updateStatus("Disconnected")
+                updateStatus("Disconnected")
             }
             updateUI()
-            prepareNewClient() // Prepare a fresh client for the next connection
+            prepareNewClient()
             if (reconnect) {
                 connect()
             }
@@ -247,7 +260,7 @@ class MainActivity : AppCompatActivity() {
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == REQUEST_RECORD_AUDIO_PERMISSION && (grantResults.isEmpty() || grantResults[0] != PackageManager.PERMISSION_GRANTED)) {
-            showError("Audio recording permission is required to use this app.")
+            showError("Audio permission required")
         }
     }
 
