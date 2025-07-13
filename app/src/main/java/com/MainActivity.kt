@@ -25,6 +25,7 @@ class MainActivity : AppCompatActivity() {
     private val mainScope = CoroutineScope(Dispatchers.Main)
     private var isListening = false
     private var isConnected = false
+    private var isServerSetupComplete = false
 
     private val models = listOf(
         "gemini-2.5-flash-preview-native-audio-dialog",
@@ -101,71 +102,77 @@ class MainActivity : AppCompatActivity() {
         return prefs.getInt("vad_sensitivity_ms", 800)
     }
 
-    private fun connect() {
-        webSocketClient = WebSocketClient(
-            model = selectedModel,
-            vadSilenceMs = getVadSensitivity(),
-            onOpen = {
-                mainScope.launch {
-                    isConnected = true
-                    updateStatus("Awaiting server setup...")
-                    updateUI()
-                }
-            },
-            onMessage = { text ->
-                mainScope.launch { processServerMessage(text) }
-            },
-            onClosing = { code, reason ->
-                mainScope.launch {
-                    Log.d(TAG, "WebSocket Closing: $code $reason")
-                    teardownSession()
-                }
-            },
-            onFailure = { t, response ->
-                mainScope.launch {
-                    Log.e(TAG, "WebSocket Failure: ${t.message}", t)
-                    showError("Connection failed: ${t.message}")
-                    teardownSession()
-                }
-            }
-        )
-        // Launch the connection on a background thread
-        mainScope.launch(Dispatchers.IO) {
-            webSocketClient.connect()
-        }
-    }
+private fun connect() {
+    // Reset the setup complete flag on each new connection attempt
+    isServerSetupComplete = false
 
-    private fun processServerMessage(text: String) {
-        Log.d(TAG, "Received: $text")
-        try {
-            val response = JSONObject(text)
-            when {
-                response.has("setupComplete") -> {
-                    updateStatus("Connected. Click 'Start Listening'.")
-                    updateUI()
-                }
-                response.has("serverContent") -> {
-                    val serverContent = response.getJSONObject("serverContent")
-                    val inputTranscription = serverContent.optJSONObject("inputTranscription")?.optString("text")
-                    val outputTranscription = serverContent.optJSONObject("outputTranscription")?.optString("text")
-
-                    inputTranscription?.let {
-                        translationAdapter.addOrUpdateTranslation(it, true)
-                    }
-                    outputTranscription?.let {
-                        translationAdapter.addOrUpdateTranslation(it, false)
-                    }
-                     binding.transcriptLog.scrollToPosition(0)
-                }
-                 response.has("error") -> {
-                    val error = response.getJSONObject("error").getString("message")
-                    showError("API Error: $error")
-                }
+    webSocketClient = WebSocketClient(
+        model = selectedModel,
+        vadSilenceMs = getVadSensitivity(),
+        onOpen = {
+            mainScope.launch {
+                isConnected = true
+                // The UI now correctly shows it's waiting for the server's specific confirmation
+                updateStatus("Awaiting server setup...")
+                updateUI()
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error parsing server message", e)
+        },
+        onMessage = { text ->
+            mainScope.launch { processServerMessage(text) }
+        },
+        onClosing = { code, reason ->
+            mainScope.launch {
+                Log.d(TAG, "WebSocket Closing: $code $reason")
+                teardownSession()
+            }
+        },
+        onFailure = { t, response ->
+            mainScope.launch {
+                Log.e(TAG, "WebSocket Failure: ${t.message}", t)
+                showError("Connection failed: ${t.message}")
+                teardownSession()
+            }
         }
+    )
+    // Launch the connection on a background thread to avoid blocking the UI
+    mainScope.launch(Dispatchers.IO) {
+        webSocketClient.connect()
     }
+}
+
+private fun processServerMessage(text: String) {
+    Log.d(TAG, "Received: $text")
+    try {
+        val response = JSONObject(text)
+        when {
+            response.has("setupComplete") -> {
+                // This is the green light from the server!
+                isServerSetupComplete = true
+                updateStatus("Connected. Click 'Start Listening'.")
+                updateUI()
+            }
+            response.has("serverContent") -> {
+                val serverContent = response.getJSONObject("serverContent")
+                val inputTranscription = serverContent.optJSONObject("inputTranscription")?.optString("text")
+                val outputTranscription = serverContent.optJSONObject("outputTranscription")?.optString("text")
+
+                inputTranscription?.let {
+                    translationAdapter.addOrUpdateTranslation(it, true)
+                }
+                outputTranscription?.let {
+                    translationAdapter.addOrUpdateTranslation(it, false)
+                }
+                 binding.transcriptLog.scrollToPosition(0)
+            }
+             response.has("error") -> {
+                val error = response.getJSONObject("error").getString("message")
+                showError("API Error: $error")
+            }
+        }
+    } catch (e: Exception) {
+        Log.e(TAG, "Error parsing server message", e)
+    }
+}
 
     private fun toggleListening() {
         isListening = !isListening
@@ -200,36 +207,40 @@ class MainActivity : AppCompatActivity() {
         updateStatus("Paused.")
     }
 
-    private fun teardownSession() {
-        stopAudio()
-        if (::webSocketClient.isInitialized) {
-            webSocketClient.disconnect()
-        }
-        isConnected = false
-        isListening = false
-        updateStatus("Disconnected")
-        updateUI()
+private fun teardownSession() {
+    stopAudio()
+    if (::webSocketClient.isInitialized) {
+        webSocketClient.disconnect()
     }
+    isConnected = false
+    isListening = false
+    isServerSetupComplete = false // Reset the server setup flag
+    updateStatus("Disconnected")
+    updateUI()
+}
 
-     private fun updateUI() {
-        binding.micBtn.isEnabled = true
-        if (!isConnected) {
-            binding.micBtn.text = "Connect"
-            binding.settingsBtn.text = "Settings"
-            binding.interimDisplay.visibility = View.GONE
-            binding.modelSpinner.isEnabled = true
+ private fun updateUI() {
+    // The Mic button is only enabled after the server has confirmed the setup is complete.
+    binding.micBtn.isEnabled = isServerSetupComplete
+
+    if (!isConnected) {
+        binding.micBtn.text = "Connect"
+        binding.micBtn.isEnabled = true // Ensure the connect button is always enabled when disconnected
+        binding.settingsBtn.text = "Settings"
+        binding.interimDisplay.visibility = View.GONE
+        binding.modelSpinner.isEnabled = true
+    } else {
+        binding.modelSpinner.isEnabled = false
+        binding.settingsBtn.text = "Disconnect"
+        if (isListening) {
+            binding.micBtn.text = "Stop"
+            binding.interimDisplay.visibility = View.VISIBLE
         } else {
-            binding.modelSpinner.isEnabled = false
-            binding.settingsBtn.text = "Disconnect"
-            if (isListening) {
-                binding.micBtn.text = "Stop"
-                binding.interimDisplay.visibility = View.VISIBLE
-            } else {
-                binding.micBtn.text = "Start Listening"
-                binding.interimDisplay.visibility = View.GONE
-            }
+            binding.micBtn.text = "Start Listening"
+            binding.interimDisplay.visibility = View.GONE
         }
     }
+}
 
     private fun updateStatus(message: String) {
         binding.statusText.text = "Status: $message"
