@@ -9,6 +9,8 @@ import okhttp3.WebSocketListener
 import org.json.JSONArray
 import org.json.JSONObject
 import okhttp3.logging.HttpLoggingInterceptor
+import kotlinx.coroutines.*
+import java.util.concurrent.TimeoutException
 
 class WebSocketClient(
     private val model: String,
