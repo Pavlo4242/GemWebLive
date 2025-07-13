@@ -23,6 +23,8 @@ jobs:
     # and adds caching for you automatically.
     - name: Setup Gradle and Cache
       uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '8.2'
 
     - name: Setup Python
       uses: actions/setup-python@v5
@@ -46,7 +48,7 @@ jobs:
         $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
 
     - name: Build APK with Gradle
-      run: ./gradlew assembleDebug
+      run: gradle assembleDebug
 
     - name: Upload APK artifact
       uses: actions/upload-artifact@v4
