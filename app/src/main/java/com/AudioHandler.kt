@@ -1,4 +1,4 @@
-package com.example.gemweblive
+package com.gemweblive
 
 import android.Manifest
 import android.content.Context
