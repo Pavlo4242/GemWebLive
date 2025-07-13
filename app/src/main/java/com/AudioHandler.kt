@@ -10,7 +10,6 @@ import android.media.audiofx.AcousticEchoCanceler
 import android.media.audiofx.AutomaticGainControl
 import android.media.audiofx.NoiseSuppressor
 import android.os.Process
-import android.util.Base64
 import android.util.Log
 import androidx.core.app.ActivityCompat
 import kotlinx.coroutines.CoroutineScope
@@ -20,7 +19,7 @@ import kotlinx.coroutines.launch
 
 class AudioHandler(
     private val context: Context,
-    private val onAudioChunk: (String) -> Unit
+    private val onAudioChunk: (ByteArray) -> Unit // Changed to pass ByteArray
 ) {
 
     private var audioRecord: AudioRecord? = null
@@ -64,26 +63,19 @@ class AudioHandler(
             .setBufferSizeInBytes(bufferSize)
             .build()
 
-        // Apply audio effects
         val sessionId = audioRecord?.audioSessionId ?: 0
         if (sessionId != 0) {
             if (NoiseSuppressor.isAvailable()) {
                 noiseSuppressor = NoiseSuppressor.create(sessionId).apply { enabled = true }
                 Log.d(TAG, "NoiseSuppressor enabled.")
-            } else {
-                 Log.w(TAG, "NoiseSuppressor not available on this device.")
             }
             if (AutomaticGainControl.isAvailable()) {
                 agc = AutomaticGainControl.create(sessionId).apply { enabled = true }
                  Log.d(TAG, "AutomaticGainControl enabled.")
-            } else {
-                 Log.w(TAG, "AutomaticGainControl not available on this device.")
             }
             if (AcousticEchoCanceler.isAvailable()) {
                 aec = AcousticEchoCanceler.create(sessionId).apply { enabled = true }
                  Log.d(TAG, "AcousticEchoCanceler enabled.")
-            } else {
-                 Log.w(TAG, "AcousticEchoCanceler not available on this device.")
             }
         }
 
@@ -97,10 +89,8 @@ class AudioHandler(
             while (isActive && isRecording) {
                 val readResult = audioRecord?.read(audioBuffer, 0, audioBuffer.size) ?: 0
                 if (readResult > 0) {
-                    val base64Data = Base64.encodeToString(audioBuffer, 0, readResult, Base64.NO_WRAP)
-                    onAudioChunk(base64Data)
-                    Log.d(TAG, "Sending audio data chunk: ${base64Data.substring(0, 30)}...") 
-                    onAudioChunk(base64Data)
+                    // Pass the raw byte array directly
+                    onAudioChunk(audioBuffer.copyOf(readResult))
                 }
             }
         }
@@ -114,7 +104,6 @@ class AudioHandler(
         audioRecord?.release()
         audioRecord = null
 
-        // Release effects
         noiseSuppressor?.release()
         agc?.release()
         aec?.release()
