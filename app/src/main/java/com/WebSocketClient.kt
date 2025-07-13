@@ -38,7 +38,7 @@ class WebSocketClient(
 
     companion object {
         private const val HOST = "generativelanguage.googleapis.com"
-        private const val API_KEY = "YOUR_API_KEY" // Replace with your actual API key
+        private const val API_KEY = "AIzaSyA-1jVnmef_LnMrM8xIuMKuX103ot_uHI4" // Replace with your actual API key
         private const val TAG = "WebSocketClient"
     }
 
