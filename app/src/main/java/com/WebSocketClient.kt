@@ -18,7 +18,6 @@ class WebSocketClient(
     private val onClosing: (Int, String) -> Unit,
     private val onFailure: (Throwable, Response?) -> Unit
 ) {
-
     private var webSocket: WebSocket? = null
     private var isSetupComplete = false
     private val client = OkHttpClient.Builder()
@@ -68,15 +67,6 @@ class WebSocketClient(
                 }
             }
 
-            override fun onMessage(webSocket: WebSocket, bytes: ByteArray) {
-                try {
-                    val text = String(bytes, Charsets.UTF_8)
-                    onMessage(text)
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error processing binary message", e)
-                }
-            }
-
             override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
                 Log.i(TAG, "WebSocket is closing: $code $reason")
                 isSetupComplete = false
@@ -91,9 +81,8 @@ class WebSocketClient(
         })
     }
 
-    fun isConnected(): Boolean {
-        return webSocket != null
-    }
+    fun isConnected(): Boolean = webSocket != null
+    fun isReady(): Boolean = isConnected() && isSetupComplete
 
     private fun sendConfigMessage() {
         val config = JSONObject().apply {
@@ -118,17 +107,14 @@ class WebSocketClient(
                 })
             })
         }
-        
         webSocket?.send(config.toString())
-        Log.d(TAG, "Sent config message: $config")
     }
 
     fun sendAudio(base64Data: String) {
-        if (!isSetupComplete) {
-            Log.w(TAG, "Cannot send audio - setup not complete")
+        if (!isReady()) {
+            Log.w(TAG, "Cannot send audio - not ready")
             return
         }
-        
         val message = JSONObject().apply {
             put("realtime_input", JSONObject().apply {
                 put("audio", JSONObject().apply {
@@ -141,16 +127,12 @@ class WebSocketClient(
     }
 
     fun disconnect() {
-        isSetupComplete = false
         webSocket?.close(1000, "User disconnected")
         webSocket = null
+        isSetupComplete = false
     }
 
-    fun isReady(): Boolean {
-        return isConnected() && isSetupComplete
-    }
-    
-private fun getSystemPrompt(): String {
+    private fun getSystemPrompt(): String {
     // Replace the content here with the full prompt from WorkingAudioD.html
     return """|### **LLM System Prompt: Bilingual Live Thai-English Interpreter (Pattaya Bar Scene)**
               |
