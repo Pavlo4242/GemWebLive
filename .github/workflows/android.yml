@@ -1,4 +1,3 @@
-# android.yml
 name: Android CI
 
 on:
@@ -10,6 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       ANDROID_HOME: /usr/local/lib/android/sdk
+      GRADLE_USER_HOME: ${{ github.workspace }}/.gradle
     
     steps:
     - uses: actions/checkout@v4
@@ -20,24 +20,56 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
-    # This single step replaces the 'Setup Gradle' and 'Initialize Gradle Wrapper' steps
-    # and adds caching for you automatically.
-    - name: Setup Gradle and Cache
+    # Cache Gradle dependencies
+    - name: Cache Gradle
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.gradle/caches
+          ~/.gradle/wrapper
+          ${{ github.workspace }}/.gradle
+        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+        restore-keys: |
+          ${{ runner.os }}-gradle-
+
+    # Cache Android SDK
+    - name: Cache Android SDK
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.android/cache
+          $ANDROID_HOME/build-cache
+          $ANDROID_HOME/licenses
+        key: ${{ runner.os }}-android-${{ hashFiles('gradle.properties') }}
+        restore-keys: |
+          ${{ runner.os }}-android-
+
+    # Setup Gradle with built-in caching
+    - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v3
       with:
         gradle-version: '8.2'
+        cache-read-only: false
 
     - name: Setup Python
       uses: actions/setup-python@v5
       with:
         python-version: '3.x'
 
+    - name: Cache Python dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
     - name: Install Python dependencies
       run: |
         pip install websockets
 
     - name: Setup Android SDK
-      uses: android-actions/setup-android@v4
+      uses: android-actions/setup-android@v3
       with:
         cmdline-tools-version: '8.0'
 
@@ -49,7 +81,7 @@ jobs:
         $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
 
     - name: Build APK with Gradle
-      run: gradle assembleDebug
+      run: gradle assembleDebug --build-cache
 
     - name: Upload APK artifact
       uses: actions/upload-artifact@v4
