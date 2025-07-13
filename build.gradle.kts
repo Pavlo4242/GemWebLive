@@ -1,6 +1,8 @@
 // build.gradle.kts
 buildscript {
     repositories {
+        google()
+        mavenCentral()
         gradlePluginPortal()
     }
     dependencies {
