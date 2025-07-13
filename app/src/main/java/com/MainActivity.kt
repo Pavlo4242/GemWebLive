@@ -29,12 +29,13 @@ class MainActivity : AppCompatActivity() {
     @Volatile private var isSessionActive = false
     @Volatile private var isServerReady = false
 
-    private val models = listOf(
-        "gemini-1.5-pro",
-        "gemini-1.0-pro",
-        "gemini-1.5-flash"
-    )
-    private var selectedModel = models[0]
+// In MainActivity.kt
+private val models = listOf(
+    "gemini-2.5-flash-preview-native-audio-dialog",
+    "gemini-2.0-flash-live-001",
+    "gemini-live-2.5-flash-preview"
+)
+private var selectedModel = models[0] // Default to first model
 
     companion object {
         private const val REQUEST_RECORD_AUDIO_PERMISSION = 200
