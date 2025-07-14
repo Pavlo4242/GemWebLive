@@ -19,7 +19,7 @@ jobs:
         cache: gradle # Enables caching for Gradle dependencies and build cache
 
     - name: Set up Android SDK 📱
-      uses: actions/setup-android@v3 # Recommended action for Android SDK setup
+      uses: actions/setup-android@v2 # Recommended action for Android SDK setup
       with:
         android-version: '34' # Compile SDK version (e.g., for Android 14)
         build-tools-version: '34.0.0' # Build tools version
