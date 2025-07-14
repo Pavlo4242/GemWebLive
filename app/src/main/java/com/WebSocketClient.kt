@@ -161,7 +161,7 @@ class WebSocketClient(
                 scope.launch {
                     val base64Encoded = Base64.encodeToString(bytes.toByteArray(), Base64.NO_WRAP)
                     Log.d(TAG, "INCOMING BINARY FRAME (length: $(bytes.size}) ${base64Encoded.take(100)}...")
-                    logFileWriter?.println("INCOMING BINARY FRAME (length: ${bytes.size)}): $base64Encoded")
+                    logFileWriter?.println("INCOMING BINARY FRAME (length: ${bytes.size}): $base64Encoded")
                 }
             }
 
