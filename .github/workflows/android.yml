@@ -73,7 +73,8 @@ jobs:
       # Verify wrapper structure
       ls -la gradle/wrapper/
       unzip -p gradle/wrapper/gradle-wrapper.jar org/gradle/wrapper/GradleWrapperMain.class >/dev/null || (echo "❌ Broken wrapper.jar"; exit 1)
-    
+
+      
     # Repair if needed
       if [ ! -f gradle/wrapper/gradle-wrapper.jar ] || [ $(stat -c%s "gradle/wrapper/gradle-wrapper.jar") -lt 50000 ]; then
       echo "Downloading fresh wrapper.jar..."
