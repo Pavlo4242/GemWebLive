@@ -10,7 +10,8 @@ import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.SeekBar
 import com.gemweblive.databinding.DialogSettingsBinding
-
+import com.gemweblive.ApiVersion
+import com.gemweblive.ApiKeyInfo
 
 
 class SettingsDialog(context: Context, private val prefs: SharedPreferences) : Dialog(context) {
@@ -64,12 +65,12 @@ class SettingsDialog(context: Context, private val prefs: SharedPreferences) : D
 
 
     private fun loadApiKeysFromResources() {
-        val rawApiKeys = context.resources.getStringArray(R.array.keys)
+        val rawApiKeys = context.resources.getStringArray(R.array.api_keys)
         val parsedList = mutableListOf<ApiKeyInfo>()
 
         for (itemString in rawApiKeys) {
-            val parts = itemString.split(":", limit = 2) // Split by colon, limit to 2 parts
-
+            val parts = itemString.split(":", limit = 2)
+            
             if (parts.size == 2) {
                 val displayName = parts[0].trim()
                 val value = parts[1].trim()
