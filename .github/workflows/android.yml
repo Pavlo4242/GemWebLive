@@ -68,6 +68,19 @@ jobs:
     - name: Grant execute permission for gradlew ✅
       run: chmod +x gradlew # Makes the Gradle wrapper script executable
 
+    - name: Validate Gradle Wrapper
+      run: |
+      # Verify wrapper structure
+      ls -la gradle/wrapper/
+      unzip -p gradle/wrapper/gradle-wrapper.jar org/gradle/wrapper/GradleWrapperMain.class >/dev/null || (echo "❌ Broken wrapper.jar"; exit 1)
+    
+    # Repair if needed
+      if [ ! -f gradle/wrapper/gradle-wrapper.jar ] || [ $(stat -c%s "gradle/wrapper/gradle-wrapper.jar") -lt 50000 ]; then
+      echo "Downloading fresh wrapper.jar..."
+      mkdir -p gradle/wrapper
+      wget -O gradle/wrapper/gradle-wrapper.jar \
+        https://repo.maven.apache.org/maven2/org/gradle/wrapper/gradle-wrapper/8.7/gradle-wrapper-8.7.jar
+    fi
     - name: Build with Gradle 🏗️
       run: ./gradlew build # Executes the Gradle build process
 
