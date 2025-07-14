@@ -44,30 +44,49 @@ class SettingsDialog(context: Context, private val prefs: SharedPreferences) : D
         setupViews()
     }
 
-    // Loads and parses the API versions from resources
-    private fun loadApiVersionsFromResources() { // Or loadApiVersionsFromResources(context: Context) if it takes context
-        // Use 'this' for context if inside SettingsDialog or MainActivity, or the passed 'context' param
-        val currentContext = if (this is Context) this else context // Adjust this line based on your function signature
-        val rawApiVersions = currentContext.resources.getStringArray(R.array.api_versions)
-        val parsedList = mutableListOf<ApiVersion>()
-    
-        for (itemString in rawApiVersions) {
-            val parts = itemString.split("|", limit = 2) // <--- NEW: Split by pipe
-    
-            if (parts.size == 2) {
-                val displayName = parts[0].trim()
-                val value = parts[1].trim()
-                parsedList.add(ApiVersion(displayName, value)) // <--- Correctly use separated parts
-            } else {
-                // Handle cases where the format might just be "v1alpha" without a pipe,
-                // or if it's malformed. If your XML always uses "Display|Value",
-                // this else block indicates an error.
-                Log.e(TAG, "Malformed API version item in resources: '$itemString'. Expected 'DisplayName|Value' format.")
-                // If you intend to allow simple "v1alpha" entries, you might do:
-                // parsedList.add(ApiVersion(itemString.trim(), itemString.trim()))
-            }
+private fun loadApiKeysFromResources(context: Context) {
+    val rawApiKeys = context.resources.getStringArray(R.array.api_keys)
+    val parsedList = mutableListOf<ApiKeyInfo>()
+
+    for (itemString in rawApiKeys) {
+        // CORRECTED: Split by colon (:) to match your strings.xml format
+        val parts = itemString.split(":", limit = 2)
+
+        if (parts.size == 2) {
+            val displayName = parts[0].trim()
+            val value = parts[1].trim()
+            parsedList.add(ApiKeyInfo(displayName, value))
+        } else {
+            Log.e(TAG, "Malformed API key item in resources: '$itemString'. Expected 'DisplayName:Value' format.")
         }
-        apiVersionsList = parsedList 
+    }
+    // Assign to the correct list property based on the class instance
+    if (this is MainActivity) {
+        apiKeys = parsedList
+    } else if (this is SettingsDialog) {
+        apiKeysList = parsedList
+    }
+
+    // Set initial selected API key based on saved preference or first item
+    val sharedPrefs = if (this is MainActivity) getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE) else prefs
+    val currentApiKeyValue = sharedPrefs.getString("api_key", null)
+
+    val selectedObject = parsedList.firstOrNull { it.value == currentApiKeyValue } ?: parsedList.firstOrNull()
+
+    if (this is MainActivity) {
+        selectedApiKeyInfo = selectedObject
+        if (selectedApiKeyInfo == null && apiKeys.isNotEmpty()) {
+            selectedApiKeyInfo = apiKeys[0] // Fallback
+        }
+        Log.d(TAG, "loadApiKeys: Loaded ${apiKeys.size} items. Initial selected: ${selectedApiKeyInfo?.value?.take(5)}...")
+    } else if (this is SettingsDialog) {
+        selectedApiKeyInfo = selectedObject
+        if (selectedApiKeyInfo == null && apiKeysList.isNotEmpty()) {
+            selectedApiKeyInfo = apiKeysList[0] // Fallback
+        }
+        Log.d(TAG, "loadApiKeys: (Dialog) Loaded ${apiKeysList.size} items. Initial selected: ${selectedApiKeyInfo?.value?.take(5)}...")
+    }
+}
 
         // Set initial selected version based on saved preference or first item
         val currentApiVersionValue = prefs.getString("api_version", null)
@@ -75,33 +94,8 @@ class SettingsDialog(context: Context, private val prefs: SharedPreferences) : D
         // Fallback if list is empty (though your array.xml implies it won't be)
         if (selectedApiVersion == null && apiVersionsList.isNotEmpty()) {
             selectedApiVersion = apiVersionsList[0]
-        }
-    }
 
-    // Loads and parses the API keys from resources
-    private fun loadApiKeysFromResources() {
-        // CORRECTED: R.array.keys to R.array.api_keys
-        val rawApiKeys = context.resources.getStringArray(R.array.api_keys) // Use R.array.api_keys
-        val parsedList = mutableListOf<ApiKeyInfo>()
 
-        for (itemString in rawApiKeys) {
-            // Assuming format: "Display Name:Value"
-            val parts = itemString.split(":", limit = 2) // Split by colon
-
-            if (parts.size == 2) {
-                parsedList.add(ApiKeyInfo(parts[0].trim(), parts[1].trim())) // Create ApiKeyInfo
-            } else {
-                Log.e(TAG, "Malformed API key item in arrays.xml: '$itemString'. Expected 'DisplayName:Value' format.")
-            }
-        }
-        apiKeysList = parsedList
-
-        // Set initial selected API key based on saved preference or first item
-        val currentApiKeyValue = prefs.getString("api_key", null)
-        selectedApiKeyInfo = apiKeysList.firstOrNull { it.value == currentApiKeyValue } ?: apiKeysList.firstOrNull()
-        // Fallback if list is empty
-        if (selectedApiKeyInfo == null && apiKeysList.isNotEmpty()) {
-            selectedApiKeyInfo = apiKeysList[0]
         }
     }
 
