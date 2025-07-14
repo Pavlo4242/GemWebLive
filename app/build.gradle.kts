@@ -32,9 +32,9 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+    
     buildFeatures {
-        // ViewBinding is used to interact with your XML layouts.
-        viewBinding = true
+        buildConfig true
     }
     packaging {
         resources {
