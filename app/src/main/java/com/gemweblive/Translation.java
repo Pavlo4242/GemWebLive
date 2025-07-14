@@ -1,6 +1,5 @@
 // TranslationAdapter.java
-package com.gemweblive
-
+package com.gemweblive;
 import android.view.LayoutInflater;
 import android.view.ViewGroup;
 import androidx.annotation.NonNull;
