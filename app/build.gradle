@@ -31,7 +31,12 @@ java {
         languageVersion = JavaLanguageVersion.of(17)
     }
 }
-
+android (
+	buildFeatures {
+		dataBinding true
+		}
+	}
+	
 application {
     // Define the main class for the application.
     mainClass = 'org.example.App'
