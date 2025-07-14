@@ -1,6 +1,7 @@
 name: Android CI
 
 on:
+  push:
   workflow_dispatch:
 
 jobs:
@@ -68,8 +69,8 @@ jobs:
       run: chmod +x gradlew
 
     - name: Build Release APK with Gradle
-      # Changed 'build' to 'assembleRelease' to ensure release APK is generated
-      run: ./gradlew assembleRelease 
+      # Changed to ':app:assembleRelease' to target the 'app' module
+      run: ./gradlew :app:assembleRelease 
 
     - name: Run tests
       # It's good practice to run tests separately if assembleRelease is used
