@@ -18,7 +18,7 @@ android {
     defaultConfig {
         // Define the unique application ID for your app.
         applicationId "com.gemweblive"
-        minSdk 24 // Android 7.0 (Nougat) - a common minimum for modern apps
+        minSdk 26 // Android 7.0 (Nougat) - a common minimum for modern apps
         targetSdk 34
         versionCode 1
         versionName "1.0"
