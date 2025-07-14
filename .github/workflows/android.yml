@@ -1,43 +1,44 @@
 name: Android CI
 
 on:
-  workflow_dispatch:
+  workflow_dispatch: # Allows manual trigger from GitHub Actions tab
 
 jobs:
   build:
-    runs-on: ubuntu-latest # Or your self-hosted runner if specified
+    runs-on: ubuntu-latest # Runs on a fresh Ubuntu virtual machine
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+    - name: Checkout code 📦
+      uses: actions/checkout@v4 # Clones your repository code
 
-    - name: Set up JDK 17
+    - name: Set up JDK 17 ☕
       uses: actions/setup-java@v4
       with:
-        java-version: '17' # Or your desired JDK version
-        distribution: 'temurin'
-        cache: gradle
+        java-version: '17' # Specifies Java 17 for your project
+        distribution: 'temurin' # Uses Temurin distribution for JDK
+        cache: gradle # Enables caching for Gradle dependencies and build cache
 
-    - name: Cache Android SDK
-      uses: actions/cache@v4
+    - name: Set up Android SDK 📱
+      uses: actions/setup-android@v3 # Recommended action for Android SDK setup
       with:
-        path: |
-    - name: Install Android SDK
-      run: |
-        echo "y" | sudo apt-get update
-        echo "y" | sudo apt-get install android-sdk # Installs the Android SDK
-        # Set up ANDROID_HOME environment variable
-        echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
-        echo "$HOME/android-sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
-        echo "$HOME/android-sdk/platform-tools" >> $GITHUB_PATH
-        # Accept Android SDK licenses
-        yes | sdkmanager --licenses
+        android-version: '34' # Compile SDK version (e.g., for Android 14)
+        build-tools-version: '34.0.0' # Build tools version
+        # If your project uses NDK, uncomment and specify the version, e.g.:
+        # ndk-version: '25.2.9519653'
+        cache: true # Enables caching for the Android SDK components
 
-    - name: Grant execute permission for gradlew
-      run: chmod +x gradlew
+    - name: Grant execute permission for gradlew ✅
+      run: chmod +x gradlew # Makes the Gradle wrapper script executable
 
-    - name: Build with Gradle
-      run: ./gradlew build
+    - name: Build with Gradle 🏗️
+      run: ./gradlew build # Executes the Gradle build process
 
-    - name: Run tests
-      run: ./gradlew test
+    - name: Run tests 🧪
+      run: ./gradlew test # Runs unit tests defined in your project
+
+    - name: Upload APK to artifacts ⬆️
+      uses: actions/upload-artifact@v4 # Uploads the generated APK as a workflow artifact
+      with:
+        name: app-release-apk # Name of the artifact in GitHub Actions UI
+        path: app/build/outputs/apk/release/*.apk # Path to your release APK (adjust if using debug/flavors)
+        retention-days: 7 # Keep the artifact for 7 days
