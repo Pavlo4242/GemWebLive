@@ -80,10 +80,7 @@ dependencies {
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.6.1'
 }
 
-// This block configures JUnit Platform for unit tests.
-tasks.named('test') {
+// This block configures JUnit Platform for local unit tests for the debug build variant.
+tasks.named('testDebugUnitTest') {
     useJUnitPlatform()
 }
-
-// The 'application' block and 'mainClass' definition are removed
-// as they are for Java command-line applications, not Android apps.
