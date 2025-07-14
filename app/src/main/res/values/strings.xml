@@ -1,4 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">GemWebLive</string>
+    <string-array name="api_versions">
+        <item>v1alpha</item>
+        <item>v1</item>
+        <item>v1beta</item>
+        <item>v1beta1</item>
+    </string-array>
 </resources>
