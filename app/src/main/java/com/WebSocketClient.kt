@@ -1,5 +1,6 @@
 package com.gemweblive
 
+import android.content.Context
 import android.util.Base64
 import android.util.Log
 import com.google.gson.Gson
@@ -7,10 +8,14 @@ import com.google.gson.GsonBuilder
 import kotlinx.coroutines.*
 import okhttp3.*
 import okhttp3.logging.HttpLoggingInterceptor
+import java.io.File // Add this import
+import java.io.FileWriter // Add this import
+import java.io.PrintWriter // Add this import
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
 class WebSocketClient(
+    private val context: Context,
     private val model: String,
     private val vadSilenceMs: Int,
     private val onOpen: () -> Unit,
@@ -27,12 +32,20 @@ class WebSocketClient(
     private val gson: Gson = GsonBuilder()
         .disableHtmlEscaping()
         .create()
-
+    
+    private var logFileWriter: PrintWriter? = null // Add this
+    private lateinit var logFile: File // Add this
+        
     private val client = OkHttpClient.Builder()
         .readTimeout(0, TimeUnit.MILLISECONDS)
         .pingInterval(30, TimeUnit.SECONDS) // Keep connection alive
-        .addInterceptor(HttpLoggingInterceptor().apply { 
-            level = HttpLoggingInterceptor.Level.BASIC 
+        .addInterceptor(HttpLoggingInterceptor(object : HttpLoggingInterceptor.Logger { // Custom Logger
+            override fun log(message: String) {
+                Log.d(TAG, message) // Log to Logcat
+                logFileWriter?.println(message) // Log to file
+            }
+        }).apply {
+            level = HttpLoggingInterceptor.Level.BODY // Change to BODY for full request/response
         })
         .build()
 
@@ -174,6 +187,20 @@ private fun sendConfigMessage() {
         if (isConnected) return
         Log.i(TAG, "Attempting to connect...")
 
+        try {
+            // Initialize log file
+            val logDir = File(context.cacheDir, "http_logs")
+            if (!logDir.exists()) logDir.mkdirs()
+            logFile = File(logDir, "network_log_${System.currentTimeMillis()}.txt")
+            logFileWriter = PrintWriter(FileWriter(logFile, true), true) // 'true' for auto-flush
+            logFileWriter?.println("--- New Session Log: ${java.util.Date()} ---")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to initialize log file", e)
+            onFailure(e)
+            return
+        }
+
+        
         val request = Request.Builder()
             .url("wss://$HOST/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=$API_KEY")
             .build()
@@ -258,6 +285,8 @@ private fun sendConfigMessage() {
             webSocket?.close(1000, "Normal closure")
             webSocket = null
         }
+        logFileWriter?.close() // Close the log file writer
+        logFileWriter = null
         isConnected = false
         isSetupComplete = false
     }
