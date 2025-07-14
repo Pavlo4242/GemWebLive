@@ -1,6 +1,5 @@
 plugins {
-    id("com.android.application")
-    // No Kotlin plugin needed if the project is pure Java
+    id("com.android.application") version "8.11.0" apply false
 }
 
 android {
