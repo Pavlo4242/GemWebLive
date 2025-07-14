@@ -311,3 +311,4 @@ class WebSocketClient(
     }
 
     fun isReady(): Boolean = isConnected && isSetupComplete
+}
