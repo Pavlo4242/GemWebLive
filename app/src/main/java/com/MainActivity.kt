@@ -18,26 +18,6 @@ import com.gemweblive.databinding.ActivityMainBinding
 import kotlinx.coroutines.*
 import org.json.JSONObject
 
-// Define the data classes here so MainActivity can access them.
-// If you have a common 'data' package, move these there.
-data class ApiVersion(
-    val displayName: String,
-    val value: String
-) {
-    override fun toString(): String {
-        return displayName
-    }
-}
-
-data class ApiKeyInfo(
-    val displayName: String,
-    val value: String
-) {
-    override fun toString(): String {
-        return displayName
-    }
-}
-
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
