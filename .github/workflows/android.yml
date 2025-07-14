@@ -23,7 +23,8 @@ jobs:
     - name: Clean Gradle Caches
       # This command forcefully removes the local Gradle caches for the build.
       # It's a common fix for "Failed to create Jar file" errors.
-      run: rm -rf ~/.gradle/caches/ # Corrected indentation (6 spaces)
+      run: rm -rf ${{ github.workspace }}/.gradle/caches/ # Corrected indentation (6 spaces)
+      
 
     # Cache Gradle dependencies
     - name: Cache Gradle
