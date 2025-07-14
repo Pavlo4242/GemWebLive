@@ -63,6 +63,9 @@ class MainActivity : AppCompatActivity() {
         loadApiVersionsFromResources(this) // Pass context to resource loading functions
         loadApiKeysFromResources(this) // Pass context
 
+        // NEW LOGGING: Check loaded lists immediately after loading
+        Log.d(TAG, "Loaded API Versions: ${apiVersions.size} items. Selected: ${selectedApiVersionObject?.displayName} (${selectedApiVersionObject?.value})")
+        Log.d(TAG, "Loaded API Keys: ${apiKeys.size} items. Selected: ${selectedApiKeyInfo?.displayName} (${selectedApiKeyInfo?.value})")
 
         requestPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted: Boolean ->
             if (isGranted) {
@@ -181,6 +184,9 @@ class MainActivity : AppCompatActivity() {
             webSocketClient.disconnect()
         }
 
+        Log.d(TAG, "prepareNewClient: Using API Version: ${selectedApiVersionObject?.value ?: "fallback_v1alpha"}")
+        Log.d(TAG, "prepareNewClient: Using API Key: ${selectedApiKeyInfo?.value?.take(5) ?: "fallback_empty"}...") // Log first 5 chars of key
+        
         // Use selected objects directly
         webSocketClient = WebSocketClient(
             context = applicationContext,
@@ -221,6 +227,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun handleMasterButton() {
+        Log.d(TAG, "handleMasterButton: Clicked. isSessionActive=$isSessionActive") // NEW LOG
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             checkPermissions()
             return
@@ -251,6 +258,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun connect() {
+        Log.d(TAG, "connect: Attempting connection. isSessionActive=$isSessionActive") // NEW LOG
         if (isSessionActive) return
         updateStatus("Connecting...")
         updateUI()
@@ -371,6 +379,7 @@ private fun toggleListening() {
     }
 
     private fun checkPermissions() {
+        Log.d(TAG, "checkPermissions: Checking RECORD_AUDIO permission.") // NEW LOGGING
         when {
             ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED -> {
                 Log.d(TAG, "RECORD_AUDIO permission already granted.")
