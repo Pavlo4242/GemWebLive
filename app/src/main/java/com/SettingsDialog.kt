@@ -16,6 +16,8 @@ class SettingsDialog(context: Context, private val prefs: SharedPreferences) : D
 
     private val apiVersions = listOf("v1alpha", "v1", "v1beta", "v1beta1")
 
+    private val apiKeys = 
+    
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = DialogSettingsBinding.inflate(layoutInflater)
@@ -25,7 +27,7 @@ class SettingsDialog(context: Context, private val prefs: SharedPreferences) : D
         setupViews()
     }
 
-    private fun setupViews() {
+    private fun setupViews() {S
         val currentVad = prefs.getInt("vad_sensitivity_ms", 800)
         binding.vadSensitivity.progress = currentVad
         binding.vadValue.text = "$currentVad ms"
@@ -47,10 +49,19 @@ class SettingsDialog(context: Context, private val prefs: SharedPreferences) : D
         val apiVersionPosition = apiVersions.indexOf(currentApiVersion)
         binding.apiVersionSpinner.setSelection(apiVersionPosition)
 
+        val apiKeySpinner = ArrayAdapter(context, android.R.layout.simple_spinner_item, apiKeys)
+        apiKeyAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        binding.apiKeySpinner.adapter = apiKeyAdapter
+        
+        val currentApiKey = prefs.getString("apiKey", apiKeys[0]) ?: apiKey[0]
+        val apiKeyPosition = apiKeys.indexOf(currentApiKey)
+        binding.apiKeySpinner.setSelection(apiKeyPosition)
+        
         binding.saveSettingsBtn.setOnClickListener {
             prefs.edit().apply {
                 putInt("vad_sensitivity_ms", binding.vadSensitivity.progress)
                 putString("api_version", apiVersions[binding.apiVersionSpinner.selectedItemPosition]) // Save selected API version
+                putString("apiKey", apiKey[binding.apiKeySpinner.selectedItemPostiion))
                 apply()
             }
             dismiss()
