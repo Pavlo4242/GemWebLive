@@ -32,7 +32,19 @@
         android:id="@+id/apiVersionSpinner"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:entries="@array/api_versions" /> <!-- Add this line -->
+        android:entries="@array/api_versions" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="API Key" />
+
+    <Spinner
+        android:id="@+id/apiKeySpinner"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="16dp" />
 
     <Button
         android:id="@+id/saveSettingsBtn"
