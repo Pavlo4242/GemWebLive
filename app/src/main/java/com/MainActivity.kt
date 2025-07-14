@@ -79,6 +79,7 @@ private var selectedModel = models[0] // Default to first model
 
     private fun prepareNewClient() {
         webSocketClient = WebSocketClient(
+            applicationContext,
             model = selectedModel,
             vadSilenceMs = getVadSensitivity(),
             onOpen = {
