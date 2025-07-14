@@ -28,8 +28,11 @@ jobs:
     - name: Clean Gradle Caches (Force Fresh Download)
       run: |
         echo "Attempting to remove ~/.gradle/caches/ for a clean slate..."
-        rm -rf ~/.gradle/caches/
+        chmod +x gradlew &&
+        rm -rf ~/.gradle/caches/ &&
         echo "Gradle caches cleaned."
+        ./gradlew clean build --refresh-dependencies
+        
       
 
     # Cache Gradle dependencies
