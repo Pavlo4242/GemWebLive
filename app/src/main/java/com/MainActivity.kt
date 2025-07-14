@@ -17,8 +17,8 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.gemweblive.databinding.ActivityMainBinding
 import kotlinx.coroutines.*
 import org.json.JSONObject
-import com.gemweblive.ApiVersion // Ensure this import is present from ApiModels.kt
-import com.gemweblive.ApiKeyInfo // Ensure this import is present from ApiModels.kt
+import com.gemweblive.ApiVersion
+import com.gemweblive.ApiKeyInfo
 
 class MainActivity : AppCompatActivity() {
 
@@ -59,8 +59,8 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         // Load API versions and keys from resources when the activity is created
-        loadApiVersionsFromResources(this) // Pass context
-        loadApiKeysFromResources(this)     // Pass context
+        loadApiVersionsFromResources(this)
+        loadApiKeysFromResources(this)
 
         // NEW LOGGING: Check loaded lists immediately after loading
         Log.d(TAG, "Loaded API Versions: ${apiVersions.size} items. Selected: ${selectedApiVersionObject?.displayName} (${selectedApiVersionObject?.value})")
@@ -77,42 +77,44 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        checkPermissions() // This will correctly check permissions and initialize components
+        checkPermissions()
 
         setupUI()
     }
 
-    // NEW: Method to load API versions from resources (specific to MainActivity)
+    // --- loadApiVersionsFromResources method (remains as last provided) ---
     private fun loadApiVersionsFromResources(context: Context) {
         val rawApiVersions = context.resources.getStringArray(R.array.api_versions)
         val parsedList = mutableListOf<ApiVersion>()
 
         for (itemString in rawApiVersions) {
-            // Since your strings.xml for api_versions has NO delimiter (e.g., <item>v1alpha</item>),
-            // we'll use the entire string for both display and value.
-            parsedList.add(ApiVersion(itemString.trim(), itemString.trim()))
-        }
-        apiVersions = parsedList // Assign to MainActivity's property
+            val parts = itemString.split("|", limit = 2)
 
-        // Set initial selected version based on saved preference or first item
+            if (parts.size == 2) {
+                parsedList.add(ApiVersion(parts[0].trim(), parts[1].trim()))
+            } else {
+                Log.e(TAG, "Malformed API version item in resources: '$itemString'. Expected 'DisplayName|Value' format.")
+                parsedList.add(ApiVersion(itemString.trim(), itemString.trim()))
+            }
+        }
+        apiVersions = parsedList
+
         val currentApiVersionValue = getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE).getString("api_version", null)
         selectedApiVersionObject = parsedList.firstOrNull { it.value == currentApiVersionValue } ?: parsedList.firstOrNull()
         
-        // Ensure a selection if list is not empty
         if (selectedApiVersionObject == null && apiVersions.isNotEmpty()) {
-            selectedApiVersionObject = apiVersions[0] // Fallback
+            selectedApiVersionObject = apiVersions[0]
             Log.d(TAG, "loadApiVersions: Defaulted selectedApiVersionObject to first item: ${selectedApiVersionObject?.value}")
         }
         Log.d(TAG, "loadApiVersions: Loaded ${apiVersions.size} items. Initial selected: ${selectedApiVersionObject?.value}")
     }
 
-    // NEW: Method to load API keys from resources (specific to MainActivity)
+    // --- loadApiKeysFromResources method (remains as last provided) ---
     private fun loadApiKeysFromResources(context: Context) {
         val rawApiKeys = context.resources.getStringArray(R.array.api_keys)
         val parsedList = mutableListOf<ApiKeyInfo>()
 
         for (itemString in rawApiKeys) {
-            // CORRECTED: Split by colon (:) to match your strings.xml format for API keys
             val parts = itemString.split(":", limit = 2)
 
             if (parts.size == 2) {
@@ -123,15 +125,12 @@ class MainActivity : AppCompatActivity() {
                 Log.e(TAG, "Malformed API key item in resources: '$itemString'. Expected 'DisplayName:Value' format.")
             }
         }
-        apiKeys = parsedList // Assign to MainActivity's property
-
-        // Set initial selected API key based on saved preference or first item
+        apiKeys = parsedList
         val currentApiKeyValue = getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE).getString("api_key", null)
         selectedApiKeyInfo = parsedList.firstOrNull { it.value == currentApiKeyValue } ?: parsedList.firstOrNull()
 
-        // Ensure a selection if list is not empty
         if (selectedApiKeyInfo == null && apiKeys.isNotEmpty()) {
-            selectedApiKeyInfo = apiKeys[0] // Fallback
+            selectedApiKeyInfo = apiKeys[0]
             Log.d(TAG, "loadApiKeys: Defaulted selectedApiKeyInfo to first item: ${selectedApiKeyInfo?.value}")
         }
         Log.d(TAG, "loadApiKeys: Loaded ${apiKeys.size} items. Initial selected: ${selectedApiKeyInfo?.value?.take(5)}...")
@@ -159,7 +158,6 @@ class MainActivity : AppCompatActivity() {
             override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
 
-        // Setup for API Version Spinner
         binding.apiVersionSpinner.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, apiVersions)
         selectedApiVersionObject?.let { initialSelection ->
             binding.apiVersionSpinner.setSelection(apiVersions.indexOf(initialSelection))
@@ -180,6 +178,8 @@ class MainActivity : AppCompatActivity() {
             override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
 
+        // NEW: Debug Connect Button Click Listener
+        binding.debugConnectBtn.setOnClickListener { handleDebugConnectButton() }
 
         binding.micBtn.setOnClickListener { handleMasterButton() }
         binding.settingsBtn.setOnClickListener { handleSettingsDisconnectButton() }
@@ -202,10 +202,9 @@ class MainActivity : AppCompatActivity() {
             webSocketClient.disconnect()
         }
 
-        // Confirm values before creating WebSocketClient
         Log.d(TAG, "prepareNewClient: Using API Version: ${selectedApiVersionObject?.value ?: "fallback_v1alpha"}")
         Log.d(TAG, "prepareNewClient: Using API Key: ${selectedApiKeyInfo?.value?.take(5) ?: "fallback_empty"}...")
-
+        
         webSocketClient = WebSocketClient(
             context = applicationContext,
             model = selectedModel,
@@ -247,10 +246,23 @@ class MainActivity : AppCompatActivity() {
         )
     }
 
+    // NEW: Handler for the Debug Connect Button
+    private fun handleDebugConnectButton() {
+        Log.d(TAG, "handleDebugConnectButton: Debug Connect clicked. Forcing connection attempt.")
+        // This button bypasses the isSessionActive check, directly attempts to connect.
+        // It still respects microphone permission needed for actual streaming after connection.
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            Log.w(TAG, "handleDebugConnectButton: RECORD_AUDIO permission not granted. Requesting before connect.")
+            checkPermissions() // Request permission, connect will happen via initializeComponentsDependentOnAudio
+        } else {
+            connect() // If permission is already granted, connect directly
+        }
+    }
+
+
     private fun handleMasterButton() {
         Log.d(TAG, "handleMasterButton: Clicked. isSessionActive=$isSessionActive")
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            Log.w(TAG, "handleMasterButton: RECORD_AUDIO permission not granted. Requesting...")
             checkPermissions()
             return
         }
@@ -375,6 +387,7 @@ class MainActivity : AppCompatActivity() {
         if (!isSessionActive) {
             binding.micBtn.text = "Connect"
             binding.micBtn.isEnabled = ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+            binding.debugConnectBtn.isEnabled = ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED // NEW: Enable debug button with permission
         } else {
             binding.micBtn.isEnabled = isServerReady
             binding.micBtn.text = when {
@@ -382,9 +395,10 @@ class MainActivity : AppCompatActivity() {
                 isListening -> "Stop"
                 else -> "Start Listening"
             }
+            binding.debugConnectBtn.isEnabled = false // Disable debug button once session is active
         }
         binding.interimDisplay.visibility = if (isListening) View.VISIBLE else View.GONE
-        Log.d(TAG, "updateUI: isSessionActive=$isSessionActive, isServerReady=$isServerReady, micBtn.isEnabled=${binding.micBtn.isEnabled}")
+        Log.d(TAG, "updateUI: isSessionActive=$isSessionActive, isServerReady=$isServerReady, micBtn.isEnabled=${binding.micBtn.isEnabled}, debugConnectBtn.isEnabled=${binding.debugConnectBtn.isEnabled}")
     }
 
     private fun updateStatus(message: String) {
