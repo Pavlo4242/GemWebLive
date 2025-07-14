@@ -1,8 +1,8 @@
-// settings.gradle.kts
-plugins {
-    id("org.gradle.toolchains.foojay-resolver-convention") version("0.7.0")
+pluginManagement {
+    repositories {
+        google()  // Add Google's repository first :cite[3]:cite[7]
+        gradlePluginPortal()
+    }
 }
-
-
 rootProject.name = "GemWebLive"
 include(":app")
