@@ -34,7 +34,7 @@ jobs:
           ~/.gradle/caches
           ~/.gradle/wrapper
           ${{ github.workspace }}/.gradle
-        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+        key: ${{ runner.os }}-gradle-$-2{{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
         restore-keys: |
           ${{ runner.os }}-gradle-
 
