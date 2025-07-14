@@ -1,6 +1,7 @@
 package com.gemweblive
 
 import android.Manifest
+import android.content.Context // Added import for Context
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.util.Log
@@ -8,14 +9,34 @@ import android.view.View
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.Toast
-import androidx.activity.result.ActivityResultLauncher // Import for ActivityResultLauncher
-import androidx.activity.result.contract.ActivityResultContracts // Import for ActivityResultContracts
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.ContextCompat // Use ContextCompat for checking permissions
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.gemweblive.databinding.ActivityMainBinding
 import kotlinx.coroutines.*
 import org.json.JSONObject
+
+// Define the data classes here so MainActivity can access them.
+// If you have a common 'data' package, move these there.
+data class ApiVersion(
+    val displayName: String,
+    val value: String
+) {
+    override fun toString(): String {
+        return displayName
+    }
+}
+
+data class ApiKeyInfo(
+    val displayName: String,
+    val value: String
+) {
+    override fun toString(): String {
+        return displayName
+    }
+}
 
 class MainActivity : AppCompatActivity() {
 
@@ -30,7 +51,7 @@ class MainActivity : AppCompatActivity() {
     @Volatile private var isSessionActive = false
     @Volatile private var isServerReady = false
 
-    // In MainActivity.kt
+    // Declare the lists and selected objects as class properties
     private val models = listOf(
         "gemini-live-2.5-flash-preview",
         "gemini-2.5-flash-preview-native-audio-dialog",
@@ -38,14 +59,17 @@ class MainActivity : AppCompatActivity() {
     )
     private var selectedModel = models[0] // Default to first model
 
+    // NEW: Declare lists for API versions and keys, and their selected objects
+    private var apiVersions: List<ApiVersion> = emptyList()
+    private var apiKeys: List<ApiKeyInfo> = emptyList()
+    private var selectedApiVersionObject: ApiVersion? = null
+    private var selectedApiKeyInfo: ApiKeyInfo? = null
+
+
     companion object {
-        // REQUEST_RECORD_AUDIO_PERMISSION is no longer strictly needed with ActivityResultLauncher,
-        // but can be kept for reference or if you mix old/new permission handling.
-        // private const val REQUEST_RECORD_AUDIO_PERMISSION = 200
         private const val TAG = "MainActivity"
     }
 
-    // Declare the ActivityResultLauncher for permissions
     private lateinit var requestPermissionLauncher: ActivityResultLauncher<String>
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -53,31 +77,61 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // 1. Initialize the ActivityResultLauncher FIRST in onCreate
-        // This registers the callback that handles the permission result.
+        // Load API versions and keys from resources when the activity is created
+        loadApiVersionsFromResources(this) // Pass context to resource loading functions
+        loadApiKeysFromResources(this) // Pass context
+
+
         requestPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted: Boolean ->
             if (isGranted) {
-                // Permission is granted. You can now safely initialize audioHandler and start features.
                 Log.d(TAG, "RECORD_AUDIO permission granted.")
-                initializeComponentsDependentOnAudio() // Call the method to initialize audio-related components
+                initializeComponentsDependentOnAudio()
             } else {
-                // Permission is denied. Inform the user or disable microphone-related features.
                 Log.w(TAG, "RECORD_AUDIO permission denied.")
                 showError("Microphone permission is required for live streaming.")
-                // Optionally, if the user denies permanently, you might guide them to settings.
-                // For example: if (!ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.RECORD_AUDIO)) {
-                //     showSettingsDialogForPermission()
-                // }
             }
         }
 
-        // 2. Now call checkPermissions, which will use the launcher
-        checkPermissions()
+        checkPermissions() // This will now correctly check permissions and initialize components
 
         setupUI()
-        // prepareNewClient() is now called from initializeComponentsDependentOnAudio()
-        // or ensure it can run safely without audio components until permission is granted
     }
+
+    // NEW: Methods to load API versions and keys from resources
+    private fun loadApiVersionsFromResources(context: Context) {
+        val rawApiVersions = context.resources.getStringArray(R.array.api_versions)
+        val parsedList = mutableListOf<ApiVersion>()
+        for (itemString in rawApiVersions) {
+            // Assuming api_versions in arrays.xml is just the 'value' (e.g., "v1alpha")
+            parsedList.add(ApiVersion(itemString, itemString))
+        }
+        apiVersions = parsedList
+        // Set initial selected version based on saved preference or first item
+        val currentApiVersionValue = getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE).getString("api_version", null)
+        selectedApiVersionObject = apiVersions.firstOrNull { it.value == currentApiVersionValue } ?: apiVersions.firstOrNull()
+    }
+
+    private fun loadApiKeysFromResources(context: Context) {
+        val rawApiKeys = context.resources.getStringArray(R.array.api_keys) // Use R.array.api_keys
+        val parsedList = mutableListOf<ApiKeyInfo>()
+
+        for (itemString in rawApiKeys) {
+            val parts = itemString.split(":", limit = 2) // Split by colon, limit to 2 parts
+
+            if (parts.size == 2) {
+                val displayName = parts[0].trim()
+                val value = parts[1].trim()
+                parsedList.add(ApiKeyInfo(displayName, value))
+            } else {
+                Log.e(TAG, "Malformed API key item in arrays.xml: '$itemString'. Expected 'DisplayName:Value' format.")
+            }
+        }
+        apiKeys = parsedList
+        // Set initial selected API key based on saved preference or first item
+        val currentApiKeyValue = getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE).getString("api_key", null)
+        selectedApiKeyInfo = apiKeys.firstOrNull { it.value == currentApiKeyValue } ?: apiKeys.firstOrNull()
+    }
+
 
     private fun setupUI() {
         translationAdapter = TranslationAdapter()
@@ -100,87 +154,93 @@ class MainActivity : AppCompatActivity() {
             override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
 
+        // NEW: Setup for API Version Spinner
+        // Ensure binding.apiVersionSpinner exists in activity_main.xml
+        binding.apiVersionSpinner.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, apiVersions)
+        selectedApiVersionObject?.let { initialSelection ->
+            binding.apiVersionSpinner.setSelection(apiVersions.indexOf(initialSelection))
+        }
+
+        binding.apiVersionSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                val newlySelectedApiVersionObject = apiVersions[position]
+                if (selectedApiVersionObject != newlySelectedApiVersionObject) {
+                    selectedApiVersionObject = newlySelectedApiVersionObject
+                    Log.d(TAG, "Selected API Version: ${selectedApiVersionObject?.displayName} (${selectedApiVersionObject?.value})")
+                    if (isSessionActive) {
+                        Toast.makeText(this@MainActivity, "Changing API version requires reconnect", Toast.LENGTH_SHORT).show()
+                        teardownSession(reconnect = true)
+                    }
+                }
+            }
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
+
+
         binding.micBtn.setOnClickListener { handleMasterButton() }
         binding.settingsBtn.setOnClickListener { handleSettingsDisconnectButton() }
         updateUI()
     }
 
-    // New method to initialize components that require RECORD_AUDIO permission
     private fun initializeComponentsDependentOnAudio() {
         if (!::audioHandler.isInitialized) {
             audioHandler = AudioHandler(this) { audioData ->
-                if (webSocketClient.isReady()) {
+                // Ensure webSocketClient is initialized before trying to use it
+                if (::webSocketClient.isInitialized && webSocketClient.isReady()) {
                     webSocketClient.sendAudio(audioData)
                 }
             }
         }
-        // Move prepareNewClient here if WebSocketClient also implicitly depends on permissions
-        // or ensure prepareNewClient is structured to handle permission absence gracefully.
-        // For simplicity, let's assume it should run after permissions are sorted.
         prepareNewClient()
     }
 
+    private fun prepareNewClient() {
+        if (::webSocketClient.isInitialized && webSocketClient.isConnected()) {
+            webSocketClient.disconnect()
+        }
 
-private fun prepareNewClient() {
-    if (::webSocketClient.isInitialized && webSocketClient.isConnected()) {
-        webSocketClient.disconnect()
+        // Use selected objects directly
+        webSocketClient = WebSocketClient(
+            context = applicationContext,
+            model = selectedModel,
+            vadSilenceMs = getVadSensitivity(),
+            apiVersion = selectedApiVersionObject?.value ?: "v1alpha", // Use the value from selected object
+            apiKey = selectedApiKeyInfo?.value ?: "", // Use the value from selected object
+            onOpen = {
+                mainScope.launch {
+                    isSessionActive = true
+                    updateStatus("Connected, awaiting server...")
+                    updateUI()
+                }
+            },
+            onMessage = { text ->
+                mainScope.launch { processServerMessage(text) }
+            },
+            onClosing = { code, reason ->
+                mainScope.launch {
+                    Log.w(TAG, "WebSocket closing: $code - $reason")
+                    teardownSession()
+                }
+            },
+            onFailure = { t ->
+                mainScope.launch {
+                    showError("Connection error: ${t.message}")
+                    teardownSession()
+                }
+            },
+            onSetupComplete = {
+                mainScope.launch {
+                    isServerReady = true
+                    updateStatus("Ready to listen")
+                    updateUI()
+                }
+            }
+        )
     }
 
-    val sharedPrefs = getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE)
-
-    // Retrieve the selected API version from preferences
-    val currentApiVersionValue = sharedPrefs.getString("api_version", apiVersions.firstOrNull()?.value)
-    val selectedApiVersionFromPrefs = apiVersions.firstOrNull { it.value == currentApiVersionValue } ?: apiVersions.firstOrNull()
-
-    // Retrieve the selected API key from preferences
-    // IMPORTANT: Make sure the preference key matches what you save in SettingsDialog ("api_key")
-    val currentApiKeyValue = sharedPrefs.getString("api_key", apiKeys.firstOrNull()?.value) // Corrected key name to "api_key"
-    val selectedApiKeyFromPrefs = apiKeys.firstOrNull { it.value == currentApiKeyValue } ?: apiKeys.firstOrNull()
-
-
-    webSocketClient = WebSocketClient(
-        context = applicationContext, // Pass context
-        model = selectedModel,
-        vadSilenceMs = getVadSensitivity(),
-        apiVersion = selectedApiVersionFromPrefs?.value ?: "v1alpha", // Use selected API Version, with fallback
-        apiKey = selectedApiKeyFromPrefs?.value ?: "", // Pass the selected API Key, with fallback
-        onOpen = {
-            mainScope.launch {
-                isSessionActive = true
-                updateStatus("Connected, awaiting server...")
-                updateUI()
-            }
-        },
-        onMessage = { text ->
-            mainScope.launch { processServerMessage(text) }
-        },
-        onClosing = { code, reason ->
-            mainScope.launch {
-                Log.w(TAG, "WebSocket closing: $code - $reason")
-                teardownSession()
-            }
-        },
-        onFailure = { t ->
-            mainScope.launch {
-                showError("Connection error: ${t.message}")
-                teardownSession()
-            }
-        },
-        onSetupComplete = {
-            mainScope.launch {
-                isServerReady = true
-                updateStatus("Ready to listen")
-                updateUI()
-            }
-        }
-    )
-}
-
     private fun handleMasterButton() {
-        // Always check permissions before initiating a new connection if it needs audio
-        // or starting listening.
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            checkPermissions() // Re-request if somehow revoked
+            checkPermissions()
             return
         }
 
@@ -252,7 +312,7 @@ private fun prepareNewClient() {
         }
     }
 
-    private fun toggleListening() {
+private fun toggleListening() {
         if (!isServerReady) return
         isListening = !isListening
         if (isListening) startAudio() else stopAudio()
@@ -260,14 +320,11 @@ private fun prepareNewClient() {
     }
 
     private fun startAudio() {
-        // Redundant check here since handleMasterButton already checks.
-        // However, it's harmless to keep as a defensive measure.
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            checkPermissions() // Re-request if somehow revoked
-            isListening = false // Ensure state is correct
+            checkPermissions()
+            isListening = false
             return
         }
-        // audioHandler is initialized in initializeComponentsDependentOnAudio()
         audioHandler.startRecording()
         updateStatus("Listening...")
     }
@@ -296,20 +353,20 @@ private fun prepareNewClient() {
                 updateStatus("Disconnected")
             }
             updateUI()
-            prepareNewClient() // Prepare a new client for potential reconnect
+            prepareNewClient()
             if (reconnect) {
-                connect() // Immediately try to connect if reconnect is true
+                connect()
             }
         }
     }
 
     private fun updateUI() {
         binding.modelSpinner.isEnabled = !isSessionActive
+        binding.apiVersionSpinner.isEnabled = !isSessionActive // NEW: Enable/disable API version spinner
         binding.settingsBtn.text = if (isSessionActive) "Disconnect" else "Settings"
 
         if (!isSessionActive) {
             binding.micBtn.text = "Connect"
-            // Mic button should only be enabled if permissions are granted for initial connection
             binding.micBtn.isEnabled = ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
         } else {
             binding.micBtn.isEnabled = isServerReady
@@ -331,41 +388,27 @@ private fun prepareNewClient() {
         updateStatus(message)
     }
 
-    // Refactored checkPermissions to use ActivityResultLauncher
     private fun checkPermissions() {
         when {
             ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED -> {
-                // Permission already granted. Proceed with initializing audio components.
                 Log.d(TAG, "RECORD_AUDIO permission already granted.")
                 initializeComponentsDependentOnAudio()
             }
             shouldShowRequestPermissionRationale(Manifest.permission.RECORD_AUDIO) -> {
-                // Show an explanation to the user why you need the permission.
-                // This is a good place to use a Dialog or a SnackBar.
                 Log.i(TAG, "Showing rationale for RECORD_AUDIO permission.")
                 Toast.makeText(this, "Microphone access is essential for voice input.", Toast.LENGTH_LONG).show()
                 requestPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
             }
             else -> {
-                // No explanation needed, request the permission directly.
                 Log.d(TAG, "Requesting RECORD_AUDIO permission.")
                 requestPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
             }
         }
     }
 
-    // onRequestPermissionsResult is no longer needed for RECORD_AUDIO with ActivityResultLauncher
-    // You can remove this method or adapt it if you have other permissions still using it.
-    // override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
-    //     super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-    //     if (requestCode == REQUEST_RECORD_AUDIO_PERMISSION && (grantResults.isEmpty() || grantResults[0] != PackageManager.PERMISSION_GRANTED)) {
-    //         showError("Audio permission required")
-    //     }
-    // }
-
     override fun onDestroy() {
         super.onDestroy()
-        teardownSession() // Ensure session is torn down and resources released
-        mainScope.cancel() // Cancel all coroutines started by mainScope
+        teardownSession()
+        mainScope.cancel()
     }
 }
