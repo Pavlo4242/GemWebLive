@@ -67,17 +67,22 @@ class WebSocketClient(
             val config = mapOf(
                 "setup" to mapOf(
                     "model" to "models/$model",
-                    "generation_config" to mapOf(
+                    // Corrected casing for generationConfig
+                    "generationConfig" to mapOf(
                         "response_modalities" to listOf("AUDIO")
                     ),
-                    "input_audio_transcription" to emptyMap<String, Any>(),
-                    "output_audio_transcription" to emptyMap<String, Any>(),
-                    "system_instruction" to mapOf(
+                    // Corrected casing for inputAudioTranscription
+                    "inputAudioTranscription" to emptyMap<String, Any>(),
+                    // Corrected casing for outputAudioTranscription
+                    "outputAudioTranscription" to emptyMap<String, Any>(),
+                    // Corrected casing for systemInstruction
+                    "systemInstruction" to mapOf(
                         "parts" to listOf(
                             mapOf("text" to SYSTEM_INSTRUCTION_TEXT)
                         )
                     ),
-                    "realtime_input_config" to mapOf(
+                    // Corrected casing for realtimeInputConfig
+                    "realtimeInputConfig" to mapOf(
                         "automatic_activity_detection" to mapOf(
                             "silence_duration_ms" to vadSilenceMs
                         )
