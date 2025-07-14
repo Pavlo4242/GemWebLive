@@ -56,7 +56,6 @@ class WebSocketClient(
         private const val TAG = "WebSocketClient"
 
         // TEMPORARILY SIMPLIFIED SYSTEM INSTRUCTION FOR TESTING ENCODING
-        // This constant is still here, but it won't be used in the config for this test.
         private val SYSTEM_INSTRUCTION_TEXT = """
             You are a helpful assistant. Translate between English and Thai.
             Be direct and concise.
@@ -68,12 +67,23 @@ class WebSocketClient(
             val config = mapOf(
                 "setup" to mapOf(
                     "model" to "models/$model",
-                    "generationConfig" to mapOf(
-                        "responseModalities" to listOf("AUDIO") // FIX: Corrected to 'responseModalities' (camelCase, plural)
+                    // FIX: Reverted to snake_case for generation_config to match working HTML
+                    "generation_config" to mapOf(
+                        "response_modalities" to listOf("AUDIO")
                     ),
-                    // TEMPORARILY REMOVED systemInstruction for testing
-                    "realtimeInputConfig" to mapOf(
-                        "automaticActivityDetection" to mapOf(
+                    // FIX: Re-added input_audio_transcription (snake_case) as empty object
+                    "input_audio_transcription" to emptyMap<String, Any>(),
+                    // FIX: Re-added output_audio_transcription (snake_case) as empty object
+                    "output_audio_transcription" to emptyMap<String, Any>(),
+                    // FIX: Reverted to snake_case for system_instruction to match working HTML
+                    "system_instruction" to mapOf(
+                        "parts" to listOf(
+                            mapOf("text" to SYSTEM_INSTRUCTION_TEXT)
+                        )
+                    ),
+                    // FIX: Reverted to snake_case for realtime_input_config to match working HTML
+                    "realtime_input_config" to mapOf(
+                        "automatic_activity_detection" to mapOf(
                             "silence_duration_ms" to vadSilenceMs
                         )
                     )
