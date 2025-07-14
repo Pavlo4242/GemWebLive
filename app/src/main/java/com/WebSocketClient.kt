@@ -5,6 +5,7 @@ import android.util.Base64
 import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
+import com.google.gson.FieldNamingPolicy // Import FieldNamingPolicy
 import kotlinx.coroutines.*
 import okhttp3.*
 import okhttp3.logging.HttpLoggingInterceptor
@@ -30,11 +31,10 @@ class WebSocketClient(
     @Volatile private var isConnected = false
 
     private val scope = CoroutineScope(Executors.newSingleThreadExecutor().asCoroutineDispatcher())
-    // Configure Gson to use FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES if needed for snake_case conversion,
-    // but typically OkHttp's interceptor doesn't use Gson for the WebSocket frame itself,
-    // so we'll rely on the API's expected format.
+    // FIX: Configure Gson to convert camelCase to snake_case for JSON serialization
     private val gson: Gson = GsonBuilder()
         .disableHtmlEscaping()
+        .setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES) // This is the key change
         .create()
 
     private var logFileWriter: PrintWriter? = null
@@ -70,24 +70,20 @@ class WebSocketClient(
             val config = mapOf(
                 "setup" to mapOf(
                     "model" to "models/$model",
-                    // FIX: Reverted to camelCase for generationConfig as per documentation and preference
+                    // Using camelCase here, Gson will convert to snake_case
                     "generationConfig" to mapOf(
-                        "responseModalities" to listOf("AUDIO") // Corrected to 'responseModalities' (camelCase, plural)
+                        "responseModalities" to listOf("AUDIO")
                     ),
-                    // FIX: Re-added inputAudioTranscription (camelCase) as empty object
                     "inputAudioTranscription" to emptyMap<String, Any>(),
-                    // FIX: Re-added outputAudioTranscription (camelCase) as empty object
                     "outputAudioTranscription" to emptyMap<String, Any>(),
-                    // FIX: Reverted to camelCase for systemInstruction as per documentation and preference
                     "systemInstruction" to mapOf(
                         "parts" to listOf(
                             mapOf("text" to SYSTEM_INSTRUCTION_TEXT)
                         )
                     ),
-                    // FIX: Reverted to camelCase for realtimeInputConfig as per documentation and preference
                     "realtimeInputConfig" to mapOf(
                         "automaticActivityDetection" to mapOf(
-                            "silence_duration_ms" to vadSilenceMs
+                            "silenceDurationMs" to vadSilenceMs // This will also be converted
                         )
                     )
                 )
