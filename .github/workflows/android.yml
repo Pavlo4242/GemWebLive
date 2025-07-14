@@ -28,11 +28,8 @@ jobs:
     - name: Clean Gradle Caches (Force Fresh Download)
       run: |
         echo "Attempting to remove ~/.gradle/caches/ for a clean slate..."
-        chmod +x gradlew &&
         rm -rf ~/.gradle/caches/ &&
-        echo "Gradle caches cleaned."
-        ./gradlew clean build --refresh-dependencies
-        
+            
       
 
     # Cache Gradle dependencies
@@ -63,7 +60,7 @@ jobs:
       uses: gradle/actions/setup-gradle@v3
       with:
         gradle-version: '8.2'
-        cache-read-only: false
+#        cache-read-only: false
 
     - name: Set up Android SDK
       uses: android-actions/setup-android@v3
@@ -82,7 +79,8 @@ jobs:
         yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
 
     - name: Build APK with Gradle
-      run: gradle assembleDebug --build-cache # Corrected indentation (6 spaces)
+      run: gradle assembleDebug --refresh-dependencies
+        
 
     - name: Upload APK artifact
       uses: actions/upload-artifact@v4
