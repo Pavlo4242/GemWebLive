@@ -40,7 +40,9 @@
         android:textAlignment="center"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/apiVersionSpinner" /> <androidx.recyclerview.widget.RecyclerView
+        app:layout_constraintTop_toBottomOf="@+id/apiVersionSpinner" />
+
+    <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/transcriptLog"
         android:layout_width="0dp"
         android:layout_height="0dp"
@@ -68,16 +70,26 @@
         app:layout_constraintStart_toStartOf="parent" />
 
     <Button
-        android:id="@+id/micBtn"
-        android:layout_width="0dp"
+        android:id="@+id/debugConnectBtn"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginStart="16dp"
-        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="16dp"
+        android:text="Debug Connect"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toStartOf="@+id/micBtn"
+        app:layout_constraintHorizontal_chainStyle="packed" /> <Button
+        android:id="@+id/micBtn"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:layout_marginEnd="8dp"
         android:layout_marginBottom="16dp"
         android:text="Connect"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toStartOf="@+id/settingsBtn"
-        app:layout_constraintStart_toStartOf="parent" />
+        app:layout_constraintStart_toEndOf="@+id/debugConnectBtn"
+        app:layout_constraintEnd_toStartOf="@+id/settingsBtn" />
 
     <Button
         android:id="@+id/settingsBtn"
@@ -87,6 +99,7 @@
         android:layout_marginBottom="16dp"
         android:text="Settings"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@+id/micBtn"/>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
