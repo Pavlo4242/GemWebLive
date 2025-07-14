@@ -48,17 +48,16 @@ private fun sendConfigMessage() {
             "setup" to mapOf(
                 "model" to "models/$model",
                 "generation_config" to mapOf(
-                    "response_mime_type" to "audio/mpeg"
+                    "response_modalities" to listOf("AUDIO")
                 ),
+                "input_audio_transcription" to emptyMap<String, Any>(),
+                "output_audio_transcription" to emptyMap<String, Any>(),
                 "realtime_input_config" to mapOf(
-                    "audio_config" to mapOf(
-                        "mime_type" to "audio/pcm;rate=16000",
-                        "vad_config" to mapOf(
-                            "silence_duration_ms" to vadSilenceMs
-                        )
+                    "automatic_activity_detection" to mapOf(
+                        "silence_duration_ms" to vadSilenceMs
                     )
                 ),
-               "system_instruction" to mapOf(
+                "system_instruction" to mapOf(
     "parts" to listOf(
         mapOf("text" to """
             |### **LLM System Prompt: Bilingual Live Thai-English Interpreter (Pattaya Bar Scene)**
