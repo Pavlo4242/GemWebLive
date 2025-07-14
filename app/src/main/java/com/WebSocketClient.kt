@@ -41,6 +41,8 @@ class WebSocketClient(
         .pingInterval(30, TimeUnit.SECONDS) // Keep connection alive
         .addInterceptor(HttpLoggingInterceptor(object : HttpLoggingInterceptor.Logger {
             override fun log(message: String) {
+                // This logger captures HTTP requests/responses for the initial handshake.
+                // It does NOT capture WebSocket frames (messages) after connection is established.
                 Log.d(TAG, message) // Log to Logcat
                 logFileWriter?.println(message) // Log to file
             }
@@ -90,7 +92,7 @@ class WebSocketClient(
                 * `เหี้ย (hia)` -> Translate as `asshole`, `jerk`, `bastard`, or `motherfucker` based on context.
                 * `ควย (kuay)` -> Translate as the noun `dick` or the exclamation `fuck you!`.
                 * `บักหำแหล่ (bak ham leh)` [Isaan] -> Translate as `little black dick`.
-            * **Examples (English -> Thai):**
+            * **Examples (English -> Thai)::**
                 * `What the fuck do you want?` -> Translate as `มึงจะเอาเหี้ยอะไร?` (Uses aggressive pronouns and swear words).
                 * `Stop being a little bitch.` -> Translate as `อย่ามาป๊อด` or `อย่าทำตัวเป็นตุ๊ด`.
                 * `He's a total asshole.` -> Translate as `แม่งโคตรเหี้ย` or `มันเหี้ยสัสๆ`.
@@ -182,7 +184,8 @@ class WebSocketClient(
             )
 
             val configString = gson.toJson(config)
-            Log.d(TAG, "Sending config: $configString")
+            Log.d(TAG, "Sending config (length: ${configString.length}): $configString") // Added length logging
+            logFileWriter?.println("OUTGOING CONFIG: $configString") // Log config message to file
             webSocket?.send(configString)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to send config", e)
@@ -214,6 +217,7 @@ class WebSocketClient(
             override fun onOpen(webSocket: WebSocket, response: Response) {
                 scope.launch {
                     Log.i(TAG, "WebSocket connection opened")
+                    logFileWriter?.println("WEB_SOCKET_OPENED") // Log WebSocket open event
                     isConnected = true
                     sendConfigMessage()
                     onOpen()
@@ -223,6 +227,7 @@ class WebSocketClient(
             override fun onMessage(webSocket: WebSocket, text: String) {
                 scope.launch {
                     Log.d(TAG, "Server message: ${text.take(500)}...")
+                    logFileWriter?.println("INCOMING MESSAGE: $text") // Log all incoming messages to file
                     try {
                         val response = gson.fromJson(text, Map::class.java)
                         when {
@@ -237,6 +242,7 @@ class WebSocketClient(
                         }
                     } catch (e: Exception) {
                         Log.e(TAG, "Error parsing server message", e)
+                        logFileWriter?.println("ERROR PARSING INCOMING MESSAGE: ${e.message}") // Log parsing errors
                     }
                 }
             }
@@ -244,6 +250,7 @@ class WebSocketClient(
             override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
                 scope.launch {
                     Log.w(TAG, "WebSocket closing: $code - $reason")
+                    logFileWriter?.println("WEB_SOCKET_CLOSING: Code=$code, Reason=$reason") // Log closing event
                     cleanup()
                     this@WebSocketClient.onClosing(code, reason) // Corrected callback invocation
                 }
@@ -252,6 +259,7 @@ class WebSocketClient(
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
                 scope.launch {
                     Log.e(TAG, "WebSocket failure", t)
+                    logFileWriter?.println("WEB_SOCKET_FAILURE: ${t.message}, Response=${response?.code}") // Log failure event
                     cleanup()
                     this@WebSocketClient.onFailure(t) // Corrected callback invocation
                 }
@@ -271,9 +279,13 @@ class WebSocketClient(
                         )
                     )
                 )
-                webSocket?.send(gson.toJson(realtimeInput))
+                val messageToSend = gson.toJson(realtimeInput)
+                Log.d(TAG, "Sending audio message (length: ${messageToSend.length})") // Log audio message length
+                logFileWriter?.println("OUTGOING AUDIO MESSAGE (length: ${messageToSend.length}): ${messageToSend.take(500)}...") // Log outgoing audio message to file (truncated for brevity in log, but full in file)
+                webSocket?.send(messageToSend)
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to send audio", e)
+                logFileWriter?.println("ERROR SENDING AUDIO: ${e.message}") // Log audio sending errors
             }
         }
     }
@@ -290,6 +302,7 @@ class WebSocketClient(
             webSocket?.close(1000, "Normal closure")
             webSocket = null
         }
+        logFileWriter?.println("--- Session Log End ---") // Mark end of session in log file
         logFileWriter?.close() // Close the log file writer
         logFileWriter = null
         isConnected = false
