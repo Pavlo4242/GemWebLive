@@ -82,11 +82,11 @@ jobs:
         fi
 
     - name: Build with Gradle
-      run: ./gradlew build
+      run: ./gradlew build --refresh-dependencies
 
     - name: Run tests
       run: ./gradlew test
-
+   
     - name: Upload APK to artifacts
       uses: actions/upload-artifact@v4
       with:
