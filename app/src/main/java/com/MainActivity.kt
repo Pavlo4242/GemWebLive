@@ -21,7 +21,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var audioHandler: AudioHandler
     private lateinit var webSocketClient: WebSocketClient
     private lateinit var translationAdapter: TranslationAdapter
-
     private val mainScope = CoroutineScope(Dispatchers.Main)
 
     // State flags
@@ -77,11 +76,15 @@ private var selectedModel = models[0] // Default to first model
         updateUI()
     }
 
-    private fun prepareNewClient() {
+private fun prepareNewClient() {
+        val sharedPrefs = getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE)
+        val selectedApiVersion = sharedPrefs.getString("api_version", "v1alpha") ?: "v1alpha" // Get saved API version
+
         webSocketClient = WebSocketClient(
             applicationContext,
             model = selectedModel,
             vadSilenceMs = getVadSensitivity(),
+            apiVersion = selectedApiVersion, // Pass API version to WebSocketClient
             onOpen = {
                 mainScope.launch {
                     isSessionActive = true
