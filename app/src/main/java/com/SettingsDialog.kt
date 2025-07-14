@@ -4,35 +4,13 @@ import android.app.Dialog
 import android.content.Context
 import android.content.SharedPreferences
 import android.os.Bundle
-import android.util.Log // Added for logging
+import android.util.Log
 import android.view.View
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.SeekBar
 import com.gemweblive.databinding.DialogSettingsBinding
 
-// Data class for API Keys (similar to ApiVersion)
-data class ApiKeyInfo(
-    val displayName: String, // What the user sees (e.g., "Language1a")
-    val value: String        // The actual API key string
-) {
-    override fun toString(): String {
-        return displayName
-    }
-}
-
-// Data class for API Versions (for consistency if you want abbreviations in settings dialog too)
-// This is already defined in MainActivity, ensure it's accessible or redefine here if needed.
-// For simplicity, I'm assuming the ApiVersion data class is accessible.
-// If not, you might need to copy it here or move it to a common file.
-// data class ApiVersion(
-//     val displayName: String,
-//     val value: String
-// ) {
-//     override fun toString(): String {
-//         return displayName
-//     }
-// }
 
 
 class SettingsDialog(context: Context, private val prefs: SharedPreferences) : Dialog(context) {
@@ -64,9 +42,10 @@ class SettingsDialog(context: Context, private val prefs: SharedPreferences) : D
         setupViews()
     }
 
-    private fun loadApiVersionsFromResources() {
-        val rawApiVersions = context.resources.getStringArray(R.array.api_versions)
-        val parsedList = mutableListOf<ApiVersion>()
+   private fun loadApiKeysFromResources() {
+        // CORRECTED: R.array.keys to R.array.api_keys
+        val rawApiKeys = context.resources.getStringArray(R.array.api_keys)
+        val parsedList = mutableListOf<ApiKeyInfo>()
         for (itemString in rawApiVersions) {
             // Assuming api_versions in arrays.xml is just the 'value' (e.g., "v1alpha")
             // If you want to use "Display|Value" format in arrays.xml for API versions too,
