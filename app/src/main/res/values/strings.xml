@@ -7,4 +7,9 @@
         <item>v1beta</item>
         <item>v1beta1</item>
     </string-array>
+    <string-array name="keys">
+        <item>Language1a:AIzaSyAIrTcT8shPcho-TFRI2tFJdCjl6_FAbO8</item>
+        <item>ImageGen:AIzaSyB0m3u3y0clLfWD7Bz1IpoTzKQaDEqwfrU</item>
+        <item>Tooling:AIzaSyCKfh1rvPHkyxHcNrJylcXjck6wRxmizAc</item>
+        <item>Gem:AIzaSyAfllQeROQdiprgy2T7yAQZuOk92iIDFm8</item>
 </resources>
