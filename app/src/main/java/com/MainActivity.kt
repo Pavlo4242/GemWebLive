@@ -17,6 +17,8 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.gemweblive.databinding.ActivityMainBinding
 import kotlinx.coroutines.*
 import org.json.JSONObject
+import com.gemweblive.ApiVersion //
+import com.gemweblive.ApiKeyInfo //
 
 class MainActivity : AppCompatActivity() {
 
