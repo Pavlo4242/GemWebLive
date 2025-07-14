@@ -7,4 +7,9 @@ pluginManagement {
         mavenCentral() // <--- ADD THIS LINE (if not already present)
     }
 }
-// Other content like include(':app') might be here
+// Define the root project name. This is optional but good practice.
+rootProject.name = "GemWebLive"
+
+// Include your 'app' module as a subproject.
+// This tells Gradle that 'app' is a module within your multi-project build.
+include(':app')
