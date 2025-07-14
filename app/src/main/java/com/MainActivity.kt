@@ -30,9 +30,10 @@ class MainActivity : AppCompatActivity() {
 
 // In MainActivity.kt
 private val models = listOf(
+    "gemini-live-2.5-flash-preview",
     "gemini-2.5-flash-preview-native-audio-dialog",
-    "gemini-2.0-flash-live-001",
-    "gemini-live-2.5-flash-preview"
+    "gemini-2.0-flash-live-001"
+    
 )
 private var selectedModel = models[0] // Default to first model
 
@@ -78,7 +79,8 @@ private var selectedModel = models[0] // Default to first model
 
 private fun prepareNewClient() {
         val sharedPrefs = getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE)
-        val selectedApiVersion = sharedPrefs.getString("api_version", "v1alpha") ?: "v1alpha" // Get saved API version
+        val selectedApiVersion = "v1alpha"
+        // val selectedApiVersion = sharedPrefs.getString("api_version", "v1alpha") ?: "v1alpha" // Get saved API version
 
         webSocketClient = WebSocketClient(
             applicationContext,
