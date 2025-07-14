@@ -1,14 +1,14 @@
 <resources>
     <string name="app_name">GemWebLive</string>
 
-    <string-array name="apiVersions">
+    <string-array name="api_versions">
         <item>v1alpha|v1alpha</item>
         <item>v1|v1</item>
         <item>v1beta|v1beta</item>
         <item>v1beta1|v1beta1</item>
     </string-array>
 
-    <string-array name="apiKeys"> <item>Language1a:AIzaSyAIrTcT8shPcho-TFRI2tFJdCjl6_FAbO8</item>
+    <string-array name="api_keys"> <item>Language1a:AIzaSyAIrTcT8shPcho-TFRI2tFJdCjl6_FAbO8</item>
         <item>ImageGen:AIzaSyB0m3u3y0clLfWD7Bz1IpoTzKQaDEqwfrU</item>
         <item>Tooling:AIzaSyCKfh1rvPHkyxHcNrJylcXjck6wRxmizAc</item>
         <item>Gem:AIzaSyAfllQeROQdiprgy2T7yAQZuOk92iIDFm8</item>
