@@ -18,6 +18,7 @@ class WebSocketClient(
     private val context: Context, // Added context to constructor
     private val model: String,
     private val vadSilenceMs: Int,
+    private val apiVersion: String, // Added apiVersion to constructor
     private val onOpen: () -> Unit,
     private val onMessage: (String) -> Unit,
     private val onClosing: (Int, String) -> Unit,
@@ -105,7 +106,7 @@ class WebSocketClient(
                 * English: `2k baht, and I’m yours all night.`
                 * Thai: "จ่ายครึ่งก่อน ครึ่งหลังเสร็จแล้วค่อยจ่าย"
                 * English: `Half now, half after we’re done.`
-            * **Examples (English -> Thai):**
+            * **Examples (English -> Thai)::**
                 * English: `How much for short time?`
                 * Thai: `ชั่วคราวเท่าไหร่?`
                 * English: `You trying to rip me off?`
@@ -210,7 +211,7 @@ class WebSocketClient(
         }
 
         val request = Request.Builder()
-            .url("wss://$HOST/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=$API_KEY")
+            .url("wss://$HOST/ws/google.ai.generativelanguage.$apiVersion.GenerativeService.BidiGenerateContent?key=$API_KEY") // Changed URL to use apiVersion
             .build()
 
         webSocket = client.newWebSocket(request, object : WebSocketListener() {
@@ -310,4 +311,3 @@ class WebSocketClient(
     }
 
     fun isReady(): Boolean = isConnected && isSetupComplete
-}
