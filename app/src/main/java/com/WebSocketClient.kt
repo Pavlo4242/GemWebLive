@@ -54,7 +54,7 @@ class WebSocketClient(
 
     companion object {
         private const val HOST = "generativelanguage.googleapis.com"
-        private const val API_KEY = "AIzaSyCKfh1rvPHkyxHcNrJylcXjck6wRxmizAc" // Replace with your actual API key
+        private const val API_KEY = "AIzaSyAIrTcT8shPcho-TFRI2tFJdCjl6_FAbO8" // Replace with your actual API key
         private const val TAG = "WebSocketClient"
 
         // Extracted the large system instruction text into a constant
