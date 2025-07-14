@@ -19,6 +19,9 @@ jobs:
       with:
         distribution: 'temurin'
         java-version: '17'
+        run: |
+          chmod +x gradlew
+          ./gradlew clean build --refresh-dependencies
 
     - name: Clean Gradle Caches
       # This command forcefully removes the local Gradle caches for the build.
