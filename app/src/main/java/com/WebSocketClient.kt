@@ -39,7 +39,7 @@ class WebSocketClient(
 
     private val client = OkHttpClient.Builder()
         .readTimeout(0, TimeUnit.MILLISECONDS)
-        .pingInterval(30, TimeUnit.SECONDS) // FIX: Changed 3(0 to 30
+        .pingInterval(30, TimeUnit.SECONDS)
         .addInterceptor(HttpLoggingInterceptor(object : HttpLoggingInterceptor.Logger {
             override fun log(message: String) {
                 Log.d(TAG, message)
@@ -56,6 +56,7 @@ class WebSocketClient(
         private const val TAG = "WebSocketClient"
 
         // TEMPORARILY SIMPLIFIED SYSTEM INSTRUCTION FOR TESTING ENCODING
+        // This constant is still here, but it won't be used in the config for this test.
         private val SYSTEM_INSTRUCTION_TEXT = """
             You are a helpful assistant. Translate between English and Thai.
             Be direct and concise.
@@ -68,14 +69,9 @@ class WebSocketClient(
                 "setup" to mapOf(
                     "model" to "models/$model",
                     "generationConfig" to mapOf(
-                        "response_modalities" to listOf("AUDIO")
+                        "response_modalities" to listOf("AUDIO") // FIX: Corrected to 'response_modalities' (plural)
                     ),
-                    // Removed inputAudioTranscription and outputAudioTranscription
-                    "systemInstruction" to mapOf(
-                        "parts" to listOf(
-                            mapOf("text" to SYSTEM_INSTRUCTION_TEXT)
-                        )
-                    ),
+                    // TEMPORARILY REMOVED systemInstruction for testing
                     "realtimeInputConfig" to mapOf(
                         "automaticActivityDetection" to mapOf(
                             "silence_duration_ms" to vadSilenceMs
