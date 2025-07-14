@@ -39,7 +39,7 @@ class WebSocketClient(
 
     private val client = OkHttpClient.Builder()
         .readTimeout(0, TimeUnit.MILLISECONDS)
-        .pingInterval(30, TimeUnit.SECONDS)
+        .pingInterval(3(0, TimeUnit.SECONDS)
         .addInterceptor(HttpLoggingInterceptor(object : HttpLoggingInterceptor.Logger {
             override fun log(message: String) {
                 Log.d(TAG, message)
@@ -67,23 +67,17 @@ class WebSocketClient(
             val config = mapOf(
                 "setup" to mapOf(
                     "model" to "models/$model",
-                    // Corrected casing for generationConfig
                     "generationConfig" to mapOf(
                         "response_modalities" to listOf("AUDIO")
                     ),
-                    // Corrected casing for inputAudioTranscription
-                    "inputAudioTranscription" to emptyMap<String, Any>(),
-                    // Corrected casing for outputAudioTranscription
-                    "outputAudioTranscription" to emptyMap<String, Any>(),
-                    // Corrected casing for systemInstruction
+                    // Removed inputAudioTranscription and outputAudioTranscription
                     "systemInstruction" to mapOf(
                         "parts" to listOf(
                             mapOf("text" to SYSTEM_INSTRUCTION_TEXT)
                         )
                     ),
-                    // Corrected casing for realtimeInputConfig
                     "realtimeInputConfig" to mapOf(
-                        "automatic_activity_detection" to mapOf(
+                        "automaticActivityDetection" to mapOf(
                             "silence_duration_ms" to vadSilenceMs
                         )
                     )
