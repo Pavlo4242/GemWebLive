@@ -1,7 +1,8 @@
-pluginManagement {
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
-        google()  // Add Google's repository first :cite[3]:cite[7]
-        gradlePluginPortal()
+        google()
+        mavenCentral()
     }
 }
 rootProject.name = "GemWebLive"
