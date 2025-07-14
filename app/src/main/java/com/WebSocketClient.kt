@@ -20,6 +20,7 @@ class WebSocketClient(
     private val model: String,
     private val vadSilenceMs: Int,
     private val apiVersion: String,
+    private val apiKey: String,
     private val onOpen: () -> Unit,
     private val onMessage: (String) -> Unit,
     private val onClosing: (Int, String) -> Unit,
@@ -55,7 +56,7 @@ class WebSocketClient(
 
     companion object {
         private const val HOST = "generativelanguage.googleapis.com"
-        private const val API_KEY = "AIzaSyAIrTcT8shPcho-TFRI2tFJdCjl6_FAbO8"
+        // private const val API_KEY = "AIzaSyAIrTcT8shPcho-TFRI2tFJdCjl6_FAbO8"
         private const val TAG = "WebSocketClient"
 
         private val SYSTEM_INSTRUCTION_TEXT = """
@@ -113,7 +114,7 @@ class WebSocketClient(
         }
 
         val request = Request.Builder()
-            .url("wss://$HOST/ws/google.ai.generativelanguage.$apiVersion.GenerativeService.BidiGenerateContent?key=$API_KEY")
+            .url("wss://$HOST/ws/google.ai.generativelanguage.$apiVersion.GenerativeService.BidiGenerateContent?key=$apiKey")
             .build()
 
         webSocket = client.newWebSocket(request, object : WebSocketListener() {
