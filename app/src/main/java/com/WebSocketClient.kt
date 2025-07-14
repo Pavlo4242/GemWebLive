@@ -55,7 +55,8 @@ class WebSocketClient(
         private const val TAG = "WebSocketClient"
 
         // Extracted the large system instruction text into a constant
-        private const val SYSTEM_INSTRUCTION_TEXT = """
+        // Removed 'const' as multi-line strings with trimIndent() are not compile-time constants
+        private val SYSTEM_INSTRUCTION_TEXT = """
             ### **LLM System Prompt: Bilingual Live Thai-English Interpreter (Pattaya Bar Scene)**
 
             **1. ROLE AND OBJECTIVE**
