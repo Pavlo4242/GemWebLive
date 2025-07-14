@@ -45,21 +45,29 @@ class SettingsDialog(context: Context, private val prefs: SharedPreferences) : D
     }
 
     // Loads and parses the API versions from resources
-    private fun loadApiVersionsFromResources() {
-        val rawApiVersions = context.resources.getStringArray(R.array.api_versions) // Use R.array.api_versions
+    private fun loadApiVersionsFromResources() { // Or loadApiVersionsFromResources(context: Context) if it takes context
+        // Use 'this' for context if inside SettingsDialog or MainActivity, or the passed 'context' param
+        val currentContext = if (this is Context) this else context // Adjust this line based on your function signature
+        val rawApiVersions = currentContext.resources.getStringArray(R.array.api_versions)
         val parsedList = mutableListOf<ApiVersion>()
+    
         for (itemString in rawApiVersions) {
-            // Assuming format: "Display Name|Value" or just "Value" if display and value are same
-            val parts = itemString.split("|", limit = 2) // Split by pipe
-
+            val parts = itemString.split("|", limit = 2) // <--- NEW: Split by pipe
+    
             if (parts.size == 2) {
-                parsedList.add(ApiVersion(parts[0].trim(), parts[1].trim()))
+                val displayName = parts[0].trim()
+                val value = parts[1].trim()
+                parsedList.add(ApiVersion(displayName, value)) // <--- Correctly use separated parts
             } else {
-                // If no pipe, assume display name and value are the same (like "v1alpha")
-                parsedList.add(ApiVersion(itemString.trim(), itemString.trim()))
+                // Handle cases where the format might just be "v1alpha" without a pipe,
+                // or if it's malformed. If your XML always uses "Display|Value",
+                // this else block indicates an error.
+                Log.e(TAG, "Malformed API version item in resources: '$itemString'. Expected 'DisplayName|Value' format.")
+                // If you intend to allow simple "v1alpha" entries, you might do:
+                // parsedList.add(ApiVersion(itemString.trim(), itemString.trim()))
             }
         }
-        apiVersionsList = parsedList
+        apiVersionsList = parsedList 
 
         // Set initial selected version based on saved preference or first item
         val currentApiVersionValue = prefs.getString("api_version", null)
