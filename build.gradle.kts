@@ -1,30 +1,29 @@
 // build.gradle.kts (root project)
 
+// This section defines dependencies for your build scripts themselves (like AGP)
 buildscript {
     repositories {
         google()
         mavenCentral()
     }
     dependencies {
-        // Keep the Android Gradle Plugin classpath here
         classpath("com.android.tools.build:gradle:8.2.2")
-        // REMOVE this line: classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.20")
+        // No Kotlin plugin classpath needed here if you apply it via pluginManagement in settings.gradle.kts
     }
 }
 
-// Ensure you have a 'plugins' block here if you apply any top-level plugins (e.g., JVM, version catalog)
-// plugins {
-//     // id("your.top.level.plugin") version "x.y.z"
-// }
+// This is where you might declare plugins that apply to the entire project (less common for Android)
+plugins {
+    // id("some.top.level.plugin") version "x.y.z"
+}
 
+// This block applies repositories to all sub-projects (like :app)
 allprojects {
     repositories {
         google()
         mavenCentral()
-        // Add other repositories your project needs for dependencies
+        // Add other repositories your project needs for dependencies (e.g., JitPack)
     }
 }
 
-// Other project-level configurations go here (e.g., tasks, ext properties)
-rootProject.name = "GemWebLive"
-include(":app")
+// Any other project-level configurations or tasks for the root project go here
