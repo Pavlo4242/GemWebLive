@@ -69,7 +69,7 @@ class WebSocketClient(
                 "setup" to mapOf(
                     "model" to "models/$model",
                     "generationConfig" to mapOf(
-                        "response_modalities" to listOf("AUDIO") // FIX: Corrected to 'response_modalities' (plural)
+                        "responseModalities" to listOf("AUDIO") // FIX: Corrected to 'responseModalities' (camelCase, plural)
                     ),
                     // TEMPORARILY REMOVED systemInstruction for testing
                     "realtimeInputConfig" to mapOf(
