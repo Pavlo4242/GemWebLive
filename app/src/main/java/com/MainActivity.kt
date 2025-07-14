@@ -121,51 +121,60 @@ class MainActivity : AppCompatActivity() {
     }
 
 
-    private fun prepareNewClient() {
-        // Ensure webSocketClient is only initialized once or re-initialized correctly
-        if (::webSocketClient.isInitialized && webSocketClient.isConnected()) {
-            webSocketClient.disconnect() // Disconnect existing client if any
-        }
-
-        val sharedPrefs = getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE)
-        val selectedApiVersion = "v1alpha" // Or retrieve from prefs as before
-        val selectedApiKey = "AIzaSyAfllQeROQdiprgy2T7yAQZuOk92iIDFm8"
-        webSocketClient = WebSocketClient(
-            applicationContext, // Using applicationContext for MessageProcessor as well
-            model = selectedModel,
-            vadSilenceMs = getVadSensitivity(),
-            apiVersion = selectedApiVersion,
-            onOpen = {
-                mainScope.launch {
-                    isSessionActive = true
-                    updateStatus("Connected, awaiting server...")
-                    updateUI()
-                }
-            },
-            onMessage = { text ->
-                mainScope.launch { processServerMessage(text) }
-            },
-            onClosing = { code, reason ->
-                mainScope.launch {
-                    Log.w(TAG, "WebSocket closing: $code - $reason")
-                    teardownSession()
-                }
-            },
-            onFailure = { t ->
-                mainScope.launch {
-                    showError("Connection error: ${t.message}")
-                    teardownSession()
-                }
-            },
-            onSetupComplete = {
-                mainScope.launch {
-                    isServerReady = true
-                    updateStatus("Ready to listen")
-                    updateUI()
-                }
-            }
-        )
+private fun prepareNewClient() {
+    if (::webSocketClient.isInitialized && webSocketClient.isConnected()) {
+        webSocketClient.disconnect()
     }
+
+    val sharedPrefs = getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE)
+
+    // Retrieve the selected API version from preferences
+    val currentApiVersionValue = sharedPrefs.getString("api_version", apiVersions.firstOrNull()?.value)
+    val selectedApiVersionFromPrefs = apiVersions.firstOrNull { it.value == currentApiVersionValue } ?: apiVersions.firstOrNull()
+
+    // Retrieve the selected API key from preferences
+    // IMPORTANT: Make sure the preference key matches what you save in SettingsDialog ("api_key")
+    val currentApiKeyValue = sharedPrefs.getString("api_key", apiKeys.firstOrNull()?.value) // Corrected key name to "api_key"
+    val selectedApiKeyFromPrefs = apiKeys.firstOrNull { it.value == currentApiKeyValue } ?: apiKeys.firstOrNull()
+
+
+    webSocketClient = WebSocketClient(
+        context = applicationContext, // Pass context
+        model = selectedModel,
+        vadSilenceMs = getVadSensitivity(),
+        apiVersion = selectedApiVersionFromPrefs?.value ?: "v1alpha", // Use selected API Version, with fallback
+        apiKey = selectedApiKeyFromPrefs?.value ?: "", // Pass the selected API Key, with fallback
+        onOpen = {
+            mainScope.launch {
+                isSessionActive = true
+                updateStatus("Connected, awaiting server...")
+                updateUI()
+            }
+        },
+        onMessage = { text ->
+            mainScope.launch { processServerMessage(text) }
+        },
+        onClosing = { code, reason ->
+            mainScope.launch {
+                Log.w(TAG, "WebSocket closing: $code - $reason")
+                teardownSession()
+            }
+        },
+        onFailure = { t ->
+            mainScope.launch {
+                showError("Connection error: ${t.message}")
+                teardownSession()
+            }
+        },
+        onSetupComplete = {
+            mainScope.launch {
+                isServerReady = true
+                updateStatus("Ready to listen")
+                updateUI()
+            }
+        }
+    )
+}
 
     private fun handleMasterButton() {
         // Always check permissions before initiating a new connection if it needs audio
