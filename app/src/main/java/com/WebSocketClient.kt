@@ -39,7 +39,7 @@ class WebSocketClient(
 
     private val client = OkHttpClient.Builder()
         .readTimeout(0, TimeUnit.MILLISECONDS)
-        .pingInterval(3(0, TimeUnit.SECONDS)
+        .pingInterval(30, TimeUnit.SECONDS) // FIX: Changed 3(0 to 30
         .addInterceptor(HttpLoggingInterceptor(object : HttpLoggingInterceptor.Logger {
             override fun log(message: String) {
                 Log.d(TAG, message)
