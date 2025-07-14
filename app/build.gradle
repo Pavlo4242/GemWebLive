@@ -23,8 +23,8 @@ android {
         versionCode 1
         versionName "1.0"
 
-        // Specify the test instrumentation runner for Android UI tests.
-        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        // Removed testInstrumentationRunner as tests are being removed.
+        // testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
     // Configure build features like Data Binding and View Binding.
@@ -70,17 +70,14 @@ dependencies {
     implementation 'com.squareup.okhttp3:logging-interceptor:4.12.0'
     implementation 'com.google.code.gson:gson:2.11.0'
 
-    // Testing dependencies.
-    // JUnit Jupiter for local unit tests (from your original file).
-    testImplementation libs.junit.jupiter
-    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-
-    // AndroidX testing libraries for instrumented tests.
-    androidTestImplementation 'androidx.test.ext:junit:1.2.1'
-    androidTestImplementation 'androidx.test.espresso:espresso-core:3.6.1'
+    // Removed all testing dependencies as requested.
+    // testImplementation libs.junit.jupiter
+    // testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    // androidTestImplementation 'androidx.test.ext:junit:1.2.1'
+    // androidTestImplementation 'androidx.test.espresso:espresso-core:3.6.1'
 }
 
-// This block configures JUnit Platform for local unit tests for the debug build variant.
-tasks.named('testDebugUnitTest') {
-    useJUnitPlatform()
-}
+// Removed the JUnit Platform configuration for local unit tests.
+// tasks.named('testDebugUnitTest') {
+//     useJUnitPlatform()
+// }
