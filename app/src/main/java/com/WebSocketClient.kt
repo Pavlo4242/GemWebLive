@@ -20,7 +20,7 @@ class WebSocketClient(
     private val model: String,
     private val vadSilenceMs: Int,
     private val apiVersion: String,
-    private val apiKey: String,
+    private val apiKey: String, // <--- NEW PARAMETER HERE
     private val onOpen: () -> Unit,
     private val onMessage: (String) -> Unit,
     private val onClosing: (Int, String) -> Unit,
@@ -45,22 +45,21 @@ class WebSocketClient(
         .pingInterval(30, TimeUnit.SECONDS)
         .addInterceptor(HttpLoggingInterceptor(object : HttpLoggingInterceptor.Logger {
             override fun log(message: String) {
-                // This logs HTTP request/response headers and bodies (including WebSocket handshake)
                 Log.d(TAG, message)
                 logFileWriter?.println(message)
             }
         }).apply {
-            level = HttpLoggingInterceptor.Level.BODY // Ensures full body logging
+            level = HttpLoggingInterceptor.Level.BODY
         })
         .build()
 
     companion object {
         private const val HOST = "generativelanguage.googleapis.com"
         // private const val API_KEY = "AIzaSyAIrTcT8shPcho-TFRI2tFJdCjl6_FAbO8"
-        private const val TAG = "WebSocketClient"
+         private const val TAG = "WebSocketClient"
 
         private val SYSTEM_INSTRUCTION_TEXT = """
-            You are a helpful assistant. Translate between English and Thai.
+            You are a helpful assistant. Translate between English and English.
             Be direct and concise.
         """.trimIndent()
     }
@@ -97,12 +96,12 @@ class WebSocketClient(
         }
     }
 
-    fun connect() {
+fun connect() {
         if (isConnected) return
         Log.i(TAG, "Attempting to connect...")
 
         try {
-            val logDir = File(context.getExternalFilesDir(null), "websocket_logs") // Changed directory name for clarity
+            val logDir = File(context.getExternalFilesDir(null), "websocket_logs")
             if (!logDir.exists()) logDir.mkdirs()
             logFile = File(logDir, "session_log_${System.currentTimeMillis()}.txt")
             logFileWriter = PrintWriter(FileWriter(logFile, true), true)
@@ -114,7 +113,8 @@ class WebSocketClient(
         }
 
         val request = Request.Builder()
-            .url("wss://$HOST/ws/google.ai.generativelanguage.$apiVersion.GenerativeService.BidiGenerateContent?key=$apiKey")
+            // Use the passed-in apiKey parameter instead of the companion object constant
+            .url("wss://$HOST/ws/google.ai.generativelanguage.$apiVersion.GenerativeService.BidiGenerateContent?key=$apiKey") // <--- USE 'apiKey' PARAM
             .build()
 
         webSocket = client.newWebSocket(request, object : WebSocketListener() {
