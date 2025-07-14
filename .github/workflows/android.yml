@@ -24,6 +24,12 @@ jobs:
       # This command forcefully removes the local Gradle caches for the build.
       # It's a common fix for "Failed to create Jar file" errors.
       run: rm -rf ${{ github.workspace }}/.gradle/caches/ # Corrected indentation (6 spaces)
+
+    - name: Clean Gradle Caches (Force Fresh Download)
+      run: |
+        echo "Attempting to remove ~/.gradle/caches/ for a clean slate..."
+        rm -rf ~/.gradle/caches/
+        echo "Gradle caches cleaned."
       
 
     # Cache Gradle dependencies
@@ -39,15 +45,15 @@ jobs:
    #       ${{ runner.os }}-gradle-
 
     # Cache Android SDK - this is the key addition
-    - name: Cache Android SDK
-      uses: actions/cache@v4
-      with:
-        path: |
-          $ANDROID_HOME
-          ~/.android/cache
-        key: ${{ runner.os }}-android-sdk-${{ hashFiles('**/build.gradle*', '**/gradle.properties') }}
-        restore-keys: |
-          ${{ runner.os }}-android-sdk-
+   # - name: Cache Android SDK
+   #   uses: actions/cache@v4
+   #   with:
+   #     path: |
+   #       $ANDROID_HOME
+   #       ~/.android/cache
+   #     key: ${{ runner.os }}-android-sdk-${{ hashFiles('**/build.gradle*', '**/gradle.properties') }}
+   #     restore-keys: |
+   #       ${{ runner.os }}-android-sdk-
 
     # Setup Gradle with built-in caching
     - name: Setup Gradle
