@@ -129,7 +129,7 @@ class MainActivity : AppCompatActivity() {
 
         val sharedPrefs = getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE)
         val selectedApiVersion = "v1alpha" // Or retrieve from prefs as before
-
+        val selectedApiKey = "AIzaSyAfllQeROQdiprgy2T7yAQZuOk92iIDFm8"
         webSocketClient = WebSocketClient(
             applicationContext, // Using applicationContext for MessageProcessor as well
             model = selectedModel,
