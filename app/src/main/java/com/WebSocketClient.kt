@@ -9,8 +9,8 @@ import com.google.gson.GsonBuilder
 import com.google.gson.FieldNamingPolicy
 import kotlinx.coroutines.*
 import okhttp3.*
-import okhttp3.logging.HttpLoggingInterceptor
 import okio.ByteString
+import okhttp3.logging.HttpLoggingInterceptor
 import java.io.File
 import java.io.FileWriter
 import java.io.PrintWriter
@@ -98,6 +98,7 @@ class WebSocketClient(
     }
 
     fun connect() {
+        Log.d(TAG, "Connect method in WebSocketClient called.") // <--- ADDED LOG FOR DEBUGGING
         if (isConnected) return
         Log.i(TAG, "Attempting to connect...")
 
@@ -156,11 +157,12 @@ class WebSocketClient(
                 }
             }
 
-            override fun onMessage(webSocket: WebSocket, bytes: ByteString) { // <--- ByteString used here
+            override fun onMessage(webSocket: WebSocket, bytes: ByteString) {
                 scope.launch {
                     val base64Encoded = Base64.encodeToString(bytes.toByteArray(), Base64.NO_WRAP)
-                    Log.d(TAG, "INCOMING BINARY FRAME (length: $(bytes.size}) ${base64Encoded.take(100)}...")
-                    logFileWriter?.println("INCOMING BINARY FRAME (length: ${bytes.size}): $base64Encoded")
+                    // CORRECTED: String interpolation syntax from $(...) to ${...}
+                    Log.d(TAG, "INCOMING BINARY FRAME (length: ${bytes.size()}): ${base64Encoded.take(100)}...")
+                    logFileWriter?.println("INCOMING BINARY FRAME (length: ${bytes.size()}): $base64Encoded")
                 }
             }
 
@@ -176,7 +178,9 @@ class WebSocketClient(
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
                 scope.launch {
                     Log.e(TAG, "WebSocket failure", t)
-                    logFileWriter?.println("WEB_SOCKET_FAILURE: ${t.message}, Response=${response?.code}, ResponseBody=${response?.body?.string()}")
+                    // Log response body only if it's not null and can be read (it will be consumed)
+                    val responseBodyString = response?.body?.string()?.take(500) ?: "N/A"
+                    logFileWriter?.println("WEB_SOCKET_FAILURE: ${t.message}, ResponseCode=${response?.code}, ResponseBody=${responseBodyString}")
                     cleanup()
                     this@WebSocketClient.onFailure(t)
                 }
