@@ -64,12 +64,14 @@ dependencies {
     implementation 'com.google.android.material:material:1.12.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
     implementation 'androidx.recyclerview:recyclerview:1.3.2'
-
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.10.0' // Use the latest stable version
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.10.0'
     // Networking and JSON parsing libraries used in WebSocketClient.java
     implementation 'com.squareup.okhttp3:okhttp:4.12.0'
     implementation 'com.squareup.okhttp3:logging-interceptor:4.12.0'
     implementation 'com.google.code.gson:gson:2.11.0'
-
+    testImplementation 'org.mockito:mockito-core:4.8.0' // Example mocking library, adjust as needed
+    testImplementation 'org.mockito:mockito-junit-jupiter:4.8.0'
     // Removed all testing dependencies as requested.
     // testImplementation libs.junit.jupiter
     // testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
