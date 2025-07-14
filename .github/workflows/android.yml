@@ -50,7 +50,7 @@ jobs:
       # Build with clean and refresh dependencies
       - name: Build with Gradle
         run: |
-          
+          chmod+x gradlew
           ./gradlew clean assembleDebug --refresh-dependencies --stacktrace
 
       - name: Upload APK artifact
