@@ -1,6 +1,7 @@
 plugins {
     // Apply the Android Application plugin for building Android apps.
-    id 'com.android.application'
+    // Explicitly adding a version here to resolve "plugin not found" error.
+    id 'com.android.application' version '8.2.0' // Using a common Android Gradle Plugin version
 }
 
 android {
