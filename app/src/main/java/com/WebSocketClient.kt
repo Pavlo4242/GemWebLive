@@ -1,3 +1,4 @@
+// app/src/main/java/com/gemweblive/WebSocketClient.kt
 package com.gemweblive
 
 import android.content.Context
@@ -8,7 +9,7 @@ import com.google.gson.GsonBuilder
 import com.google.gson.FieldNamingPolicy
 import kotlinx.coroutines.*
 import okhttp3.*
-import okhttp3.ByteString // <--- ADD THIS IMPORT
+import okhttp3.ByteString // <--- THIS LINE IS ABSOLUTELY ESSENTIAL AND MUST BE HERE
 import okhttp3.logging.HttpLoggingInterceptor
 import java.io.File
 import java.io.FileWriter
@@ -21,7 +22,7 @@ class WebSocketClient(
     private val model: String,
     private val vadSilenceMs: Int,
     private val apiVersion: String,
-    private val apiKey: String, // <--- NEW PARAMETER HERE
+    private val apiKey: String,
     private val onOpen: () -> Unit,
     private val onMessage: (String) -> Unit,
     private val onClosing: (Int, String) -> Unit,
@@ -56,8 +57,7 @@ class WebSocketClient(
 
     companion object {
         private const val HOST = "generativelanguage.googleapis.com"
-        // private const val API_KEY = "AIzaSyAIrTcT8shPcho-TFRI2tFJdCjl6_FAbO8"
-         private const val TAG = "WebSocketClient"
+        private const val TAG = "WebSocketClient"
 
         private val SYSTEM_INSTRUCTION_TEXT = """
             You are a helpful assistant. Translate between English and English.
@@ -90,14 +90,14 @@ class WebSocketClient(
 
             val configString = gson.toJson(config)
             Log.d(TAG, "Sending config (length: ${configString.length}): $configString")
-            logFileWriter?.println("OUTGOING CONFIG FRAME: $configString") // Log the raw JSON frame
+            logFileWriter?.println("OUTGOING CONFIG FRAME: $configString")
             webSocket?.send(configString)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to send config", e)
         }
     }
 
-fun connect() {
+    fun connect() {
         if (isConnected) return
         Log.i(TAG, "Attempting to connect...")
 
@@ -114,8 +114,7 @@ fun connect() {
         }
 
         val request = Request.Builder()
-            // Use the passed-in apiKey parameter instead of the companion object constant
-            .url("wss://$HOST/ws/google.ai.generativelanguage.$apiVersion.GenerativeService.BidiGenerateContent?key=$apiKey") // <--- USE 'apiKey' PARAM
+            .url("wss://$HOST/ws/google.ai.generativelanguage.$apiVersion.GenerativeService.BidiGenerateContent?key=$apiKey")
             .build()
 
         webSocket = client.newWebSocket(request, object : WebSocketListener() {
@@ -136,11 +135,10 @@ fun connect() {
 
             override fun onMessage(webSocket: WebSocket, text: String) {
                 scope.launch {
-                    // This is the raw TEXT message payload from the server
                     Log.d(TAG, "INCOMING TEXT FRAME: ${text.take(500)}...")
-                    logFileWriter?.println("INCOMING TEXT FRAME: $text") // Log full text message
+                    logFileWriter?.println("INCOMING TEXT FRAME: $text")
                     try {
-                        val responseMap = gson.fromJson(text, Map::class.java) // Parse as generic map
+                        val responseMap = gson.fromJson(text, Map::class.java)
                         when {
                             responseMap?.containsKey("setupComplete") == true -> {
                                 if (!isSetupComplete) {
@@ -149,7 +147,7 @@ fun connect() {
                                     onSetupComplete()
                                 }
                             }
-                            else -> this@WebSocketClient.onMessage(text) // Pass to outer callback for app logic
+                            else -> this@WebSocketClient.onMessage(text)
                         }
                     } catch (e: Exception) {
                         Log.e(TAG, "Error parsing incoming TEXT frame", e)
@@ -158,15 +156,11 @@ fun connect() {
                 }
             }
 
-            override fun onMessage(webSocket: WebSocket, bytes: ByteString) {
+            override fun onMessage(webSocket: WebSocket, bytes: ByteString) { // <--- ByteString used here
                 scope.launch {
-                    // This is the raw BINARY message payload from the server
                     val base64Encoded = Base64.encodeToString(bytes.toByteArray(), Base64.NO_WRAP)
                     Log.d(TAG, "INCOMING BINARY FRAME (length: ${bytes.size()}): ${base64Encoded.take(100)}...")
-                    // Log the raw binary data as Base64 for readability in text file
                     logFileWriter?.println("INCOMING BINARY FRAME (length: ${bytes.size()}): $base64Encoded")
-                    // If the app needs to process this binary data, you'd pass bytes.toByteArray() to a handler
-                    // Example: audioOutputHandler.play(bytes.toByteArray())
                 }
             }
 
@@ -194,9 +188,7 @@ fun connect() {
         if (!isReady()) return
         scope.launch {
             try {
-                // Log the raw audio data (Base64) that's about to be wrapped in JSON
                 val base64Audio = Base64.encodeToString(audioData, Base64.NO_WRAP)
-                // The API expects this Base64 encoded string *inside* a JSON object
                 val realtimeInput = mapOf(
                     "realtimeInput" to mapOf(
                         "audio" to mapOf(
@@ -207,7 +199,7 @@ fun connect() {
                 )
                 val messageToSend = gson.toJson(realtimeInput)
                 Log.d(TAG, "OUTGOING AUDIO FRAME (length: ${messageToSend.length}): ${messageToSend.take(500)}...")
-                logFileWriter?.println("OUTGOING AUDIO FRAME: $messageToSend") // Log the raw JSON frame containing audio
+                logFileWriter?.println("OUTGOING AUDIO FRAME: $messageToSend")
                 webSocket?.send(messageToSend)
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to send audio", e)
@@ -224,7 +216,7 @@ fun connect() {
     private fun cleanup() {
         if (isConnected) {
             Log.i(TAG, "Cleaning up WebSocket connection")
-            webSocket?.close(1000, "Normal closure") // Attempt polite closure
+            webSocket?.close(1000, "Normal closure")
             webSocket = null
         }
         logFileWriter?.println("--- Session Log End ---")
@@ -235,5 +227,5 @@ fun connect() {
     }
 
     fun isReady(): Boolean = isConnected && isSetupComplete
-    fun isConnected(): Boolean = isConnected // Add this helper for clarity in MainActivity
+    fun isConnected(): Boolean = isConnected
 }
