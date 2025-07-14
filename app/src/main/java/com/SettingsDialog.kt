@@ -1,3 +1,4 @@
+// app/src/main/java/com/gemweblive/SettingsDialog.kt
 package com.gemweblive
 
 import android.app.Dialog
@@ -5,11 +6,11 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.os.Bundle
 import android.util.Log
-import android.view.View
-import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.SeekBar
 import com.gemweblive.databinding.DialogSettingsBinding
+
+// Ensure ApiVersion and ApiKeyInfo are imported from your ApiModels.kt
 import com.gemweblive.ApiVersion
 import com.gemweblive.ApiKeyInfo
 
@@ -18,13 +19,13 @@ class SettingsDialog(context: Context, private val prefs: SharedPreferences) : D
 
     private lateinit var binding: DialogSettingsBinding
 
-    // Use a nullable var to store the list after parsing from resources
+    // These lists will hold the parsed data from resources
     private var apiVersionsList: List<ApiVersion> = emptyList()
     private var apiKeysList: List<ApiKeyInfo> = emptyList()
 
+    // These will hold the currently selected items
     private var selectedApiVersion: ApiVersion? = null
     private var selectedApiKeyInfo: ApiKeyInfo? = null
-
 
     companion object {
         private const val TAG = "SettingsDialog"
@@ -36,56 +37,63 @@ class SettingsDialog(context: Context, private val prefs: SharedPreferences) : D
         setContentView(binding.root)
         setCancelable(false)
 
-        // Load data from resources first
+        // Load data from resources into our lists
         loadApiVersionsFromResources()
         loadApiKeysFromResources()
 
         setupViews()
     }
 
-   private fun loadApiKeysFromResources() {
-        // CORRECTED: R.array.keys to R.array.api_keys
-        val rawApiKeys = context.resources.getStringArray(R.array.api_keys)
-        val parsedList = mutableListOf<ApiKeyInfo>()
+    // Loads and parses the API versions from resources
+    private fun loadApiVersionsFromResources() {
+        val rawApiVersions = context.resources.getStringArray(R.array.api_versions) // Use R.array.api_versions
+        val parsedList = mutableListOf<ApiVersion>()
         for (itemString in rawApiVersions) {
-            // Assuming api_versions in arrays.xml is just the 'value' (e.g., "v1alpha")
-            // If you want to use "Display|Value" format in arrays.xml for API versions too,
-            // you'd parse them similarly to apiKeys below.
-            // For now, assuming direct value and display same as value for simplicity.
-            parsedList.add(ApiVersion(itemString, itemString))
+            // Assuming format: "Display Name|Value" or just "Value" if display and value are same
+            val parts = itemString.split("|", limit = 2) // Split by pipe
+
+            if (parts.size == 2) {
+                parsedList.add(ApiVersion(parts[0].trim(), parts[1].trim()))
+            } else {
+                // If no pipe, assume display name and value are the same (like "v1alpha")
+                parsedList.add(ApiVersion(itemString.trim(), itemString.trim()))
+            }
         }
         apiVersionsList = parsedList
-        // Set initial selected version based on saved preference or default
-        val currentApiVersionValue = prefs.getString("api_version", apiVersionsList.firstOrNull()?.value)
+
+        // Set initial selected version based on saved preference or first item
+        val currentApiVersionValue = prefs.getString("api_version", null)
         selectedApiVersion = apiVersionsList.firstOrNull { it.value == currentApiVersionValue } ?: apiVersionsList.firstOrNull()
+        // Fallback if list is empty (though your array.xml implies it won't be)
         if (selectedApiVersion == null && apiVersionsList.isNotEmpty()) {
-            selectedApiVersion = apiVersionsList[0] // Fallback to first if preference not found or list is empty
+            selectedApiVersion = apiVersionsList[0]
         }
     }
 
-
+    // Loads and parses the API keys from resources
     private fun loadApiKeysFromResources() {
-        val rawApiKeys = context.resources.getStringArray(R.array.api_keys)
+        // CORRECTED: R.array.keys to R.array.api_keys
+        val rawApiKeys = context.resources.getStringArray(R.array.api_keys) // Use R.array.api_keys
         val parsedList = mutableListOf<ApiKeyInfo>()
 
         for (itemString in rawApiKeys) {
-            val parts = itemString.split(":", limit = 2)
-            
+            // Assuming format: "Display Name:Value"
+            val parts = itemString.split(":", limit = 2) // Split by colon
+
             if (parts.size == 2) {
-                val displayName = parts[0].trim()
-                val value = parts[1].trim()
-                parsedList.add(ApiKeyInfo(displayName, value))
+                parsedList.add(ApiKeyInfo(parts[0].trim(), parts[1].trim())) // Create ApiKeyInfo
             } else {
                 Log.e(TAG, "Malformed API key item in arrays.xml: '$itemString'. Expected 'DisplayName:Value' format.")
             }
         }
         apiKeysList = parsedList
 
-        // Set initial selected API key based on saved preference or default
-        val currentApiKeyValue = prefs.getString("api_key", apiKeysList.firstOrNull()?.value) // Corrected key name to "api_key"
+        // Set initial selected API key based on saved preference or first item
+        val currentApiKeyValue = prefs.getString("api_key", null)
         selectedApiKeyInfo = apiKeysList.firstOrNull { it.value == currentApiKeyValue } ?: apiKeysList.firstOrNull()
+        // Fallback if list is empty
         if (selectedApiKeyInfo == null && apiKeysList.isNotEmpty()) {
-            selectedApiKeyInfo = apiKeysList[0] // Fallback to first if preference not found or list is empty
+            selectedApiKeyInfo = apiKeysList[0]
         }
     }
 
@@ -104,10 +112,7 @@ class SettingsDialog(context: Context, private val prefs: SharedPreferences) : D
         })
 
         // Setup API Version Spinner
-        val apiVersionAdapter = ArrayAdapter(context, android.R.layout.simple_spinner_item, apiVersionsList) // Use parsed list
-        apiVersionAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-        binding.apiVersionSpinner.adapter = apiVersionAdapter
-
+        binding.apiVersionSpinner.adapter = ArrayAdapter(context, android.R.layout.simple_spinner_item, apiVersionsList)
         // Set spinner selection
         selectedApiVersion?.let {
             val apiVersionPosition = apiVersionsList.indexOf(it)
@@ -117,10 +122,7 @@ class SettingsDialog(context: Context, private val prefs: SharedPreferences) : D
         }
 
         // Setup API Key Spinner
-        val apiKeyAdapter = ArrayAdapter(context, android.R.layout.simple_spinner_item, apiKeysList) // Use parsed list
-        apiKeyAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-        binding.apiKeySpinner.adapter = apiKeyAdapter
-
+        binding.apiKeySpinner.adapter = ArrayAdapter(context, android.R.layout.simple_spinner_item, apiKeysList)
         // Set spinner selection
         selectedApiKeyInfo?.let {
             val apiKeyPosition = apiKeysList.indexOf(it)
@@ -138,7 +140,7 @@ class SettingsDialog(context: Context, private val prefs: SharedPreferences) : D
 
                 // Save the actual 'value' of the selected ApiKeyInfo object
                 val selectedApiKeyFromSpinner = apiKeysList[binding.apiKeySpinner.selectedItemPosition]
-                putString("api_key", selectedApiKeyFromSpinner.value) // Corrected key name to "api_key"
+                putString("api_key", selectedApiKeyFromSpinner.value)
                 apply()
             }
             dismiss()
