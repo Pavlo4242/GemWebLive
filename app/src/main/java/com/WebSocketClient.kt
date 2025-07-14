@@ -52,14 +52,9 @@ private fun sendConfigMessage() {
                 ),
                 "input_audio_transcription" to emptyMap<String, Any>(),
                 "output_audio_transcription" to emptyMap<String, Any>(),
-                "realtime_input_config" to mapOf(
-                    "automatic_activity_detection" to mapOf(
-                        "silence_duration_ms" to vadSilenceMs
-                    )
-                ),
                 "system_instruction" to mapOf(
-    "parts" to listOf(
-        mapOf("text" to """
+                    "parts" to listOf(
+                        mapOf("text" to """
             |### **LLM System Prompt: Bilingual Live Thai-English Interpreter (Pattaya Bar Scene)**
             |
             |**1. ROLE AND OBJECTIVE**
@@ -158,6 +153,11 @@ private fun sendConfigMessage() {
             |* **NO META-TEXT:** Do not literal meanings, explanations, advice, opinions or any other meta-information-- OUTPUT the TRANSLATION ONLY
             |* **NATURAL SPEECH:** The output must be natural, conversational speech that a native speaker would use in the same context.
         """.trimMargin())
+                    )
+                ),
+                "realtime_input_config" to mapOf(
+                    "automatic_activity_detection" to mapOf(
+                        "silence_duration_ms" to vadSilenceMs
                     )
                 )
             )
