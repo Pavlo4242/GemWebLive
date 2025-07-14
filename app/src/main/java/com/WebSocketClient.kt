@@ -92,7 +92,7 @@ private fun sendConfigMessage() {
 
         try {
             // Initialize log file
-            val logDir = File(context.cacheDir, "http_logs")
+            val logDir = File(context.getExternalFilesDir(null), "http_logs") // Changed path
             if (!logDir.exists()) logDir.mkdirs()
             logFile = File(logDir, "network_log_${System.currentTimeMillis()}.txt")
             logFileWriter = PrintWriter(FileWriter(logFile, true), true) // 'true' for auto-flush
