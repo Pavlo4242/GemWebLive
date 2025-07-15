@@ -117,7 +117,7 @@ class SettingsDialog(
                 binding.vadValue.text = "$progress ms"
             }
             override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-            override fun fun onStopTrackingTouch(seekBar: SeekBar?) {} // Ensure 'override fun' is correct here too if it was 'fun onStopTrackingTouch'
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {} // Ensure 'override fun' is correct here too if it was 'fun onStopTrackingTouch'
         })
 
         // Setup Model Spinner
