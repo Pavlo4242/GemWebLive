@@ -29,7 +29,9 @@ class WebSocketClient(
     private val onClosing: (Int, String) -> Unit,
     private val onFailure: (Throwable) -> Unit,
     private val onSetupComplete: () -> Unit
-    private val modelInfo: ModelInfo,
+    private val modelInfo: ModelInfo, // Pass the full info object
+    private val configBuilder: ConfigBuilder, // Pass the builder
+    private val sessionHandle: String?
 ) {
     private var webSocket: WebSocket? = null
     @Volatile private var isSetupComplete = false
@@ -166,51 +168,10 @@ class WebSocketClient(
 
     private fun sendConfigMessage() {
         try {
-            val setupConfig = mutableMapOf<String, Any>()
-
-            setupConfig["model"] = "models/${modelInfo.modelName}"
-
-            // --- Dynamically add parameters based on model capabilities ---
-
-            // Add system instruction ONLY if the model supports it
-            // --- NEW: Split the instruction text into paragraphs ---
-            if (modelInfo.supportsSystemInstruction) {
-                val instructionParts = SYSTEM_INSTRUCTION_TEXT.split(Regex("\n\n+")).map {
-                    mapOf("text" to it.trim())
-                }
-                setupConfig["systemInstruction"] = mapOf("parts" to instructionParts)
-            }
-
-            val setupConfig = mutableMapOf<String, Any>(
-                "model" to "models/$model",
-                "generationConfig" to mapOf(
-                    "responseModalities" to listOf("AUDIO")
-                ),
-                "inputAudioTranscription" to emptyMap<String, Any>(),
-                "outputAudioTranscription" to emptyMap<String, Any>(),
-                // --- MODIFIED: Use the new list of parts ---
-                "systemInstruction" to mapOf("parts" to instructionParts),
-                "realtimeInputConfig" to mapOf(
-                    "automaticActivityDetection" to mapOf(
-                        "silenceDurationMs" to vadSilenceMs
-                    )
-                ),
-                "contextWindowCompression" to mapOf(
-                    "slidingWindow" to emptyMap<String, Any>()
-                )
-            )
-
-            val sessionResumption = if (sessionHandle != null) {
-                mapOf("handle" to sessionHandle)
-            } else {
-                emptyMap<String, Any>()
-            }
-            setupConfig["sessionResumption"] = sessionResumption
-
-            val fullConfig = mapOf("setup" to setupConfig)
-            val configString = gson.toJson(fullConfig)
+            // The client is now "dumb." It just asks the builder for the config string.
+            val configString = configBuilder.buildWebSocketConfig(modelInfo, sessionHandle)
+            Log.d(TAG, "Sending config built for ${modelInfo.modelName}: $configString")
             webSocket?.send(configString)
-
         } catch (e: Exception) {
             Log.e(TAG, "Failed to send config", e)
         }
