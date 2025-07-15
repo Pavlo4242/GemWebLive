@@ -4,7 +4,6 @@ package com.gemweblive
 import android.content.Context
 import android.util.Base64
 import android.util.Log
-import com.gemweblive.ApiModels.ModelInfo
 import com.gemweblive.util.ConfigBuilder
 import com.google.gson.Gson
 import kotlinx.coroutines.CoroutineScope
