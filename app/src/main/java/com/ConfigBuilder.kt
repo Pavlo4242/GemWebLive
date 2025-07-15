@@ -12,8 +12,10 @@ class ConfigBuilder(private val gson: Gson) {
     fun buildWebSocketConfig(modelInfo: ModelInfo, sessionHandle: String?): String {
         val setupConfig = mutableMapOf<String, Any>()
 
+        // Core Model Identification
         setupConfig["model"] = "models/${modelInfo.modelName}"
 
+        // Universal Parameters
         if (modelInfo.supportsSafetySettings) {
             setupConfig["safetySettings"] = getDefaultSafetySettings().map { s ->
                 mapOf("category" to s.category, "threshold" to s.threshold)
@@ -22,9 +24,13 @@ class ConfigBuilder(private val gson: Gson) {
         if (modelInfo.supportsThinkingConfig) {
             setupConfig["thinkingConfig"] = mapOf("thinkingBudget" to -1)
         }
+
+        // Conditional Parameters
         if (modelInfo.supportsSystemInstruction) {
             setupConfig["systemInstruction"] = mapOf("parts" to getSystemInstructionParts())
         }
+
+        // Live API Specific Parameters
         if (modelInfo.isLiveModel) {
             if (modelInfo.supportsInputAudioTranscription) {
                 setupConfig["inputAudioTranscription"] = emptyMap<String, Any>()
@@ -36,6 +42,8 @@ class ConfigBuilder(private val gson: Gson) {
                 setupConfig["contextWindowCompression"] = mapOf("slidingWindow" to emptyMap<String, Any>())
             }
         }
+
+        // "Native Audio" model specific parameters
         if (modelInfo.modelName.contains("native", ignoreCase = true)) {
             val generationConfig = setupConfig.getOrPut("generationConfig") { mutableMapOf<String, Any>() } as MutableMap<String, Any>
             if (modelInfo.supportsAffectiveDialog) {
@@ -45,6 +53,8 @@ class ConfigBuilder(private val gson: Gson) {
                 generationConfig["proactivity"] = mapOf("proactiveAudio" to true)
             }
         }
+
+        // Session Management
         sessionHandle?.let {
             setupConfig["sessionResumption"] = mapOf("handle" to it)
         }
