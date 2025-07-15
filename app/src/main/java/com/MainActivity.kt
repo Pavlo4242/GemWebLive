@@ -18,13 +18,22 @@ import com.google.gson.annotations.SerializedName
 import kotlinx.coroutines.*
 import java.lang.StringBuilder
 
-// Data class definitions
+// --- Data classes for parsing server responses ---
 data class ServerResponse(
-    @SerializedName("serverContent") val serverContent: ServerContent?, @SerializedName("inputTranscription") val inputTranscription: Transcription?,
-    @SerializedName("outputTranscription") val outputTranscription: Transcription?, @SerializedName("setupComplete") val setupComplete: SetupComplete?,
-    @SerializedName("sessionResumptionUpdate") val sessionResumptionUpdate: SessionResumptionUpdate?, @SerializedName("goAway") val goAway: GoAway?
+    @SerializedName("serverContent") val serverContent: ServerContent?,
+    @SerializedName("inputTranscription") val inputTranscription: Transcription?,
+    @SerializedName("outputTranscription") val outputTranscription: Transcription?,
+    @SerializedName("setupComplete") val setupComplete: SetupComplete?,
+    @SerializedName("sessionResumptionUpdate") val sessionResumptionUpdate: SessionResumptionUpdate?,
+    @SerializedName("goAway") val goAway: GoAway?
 )
-data class ServerContent(@SerializedName("parts") val parts: List<Part>?, @SerializedName("modelTurn") val modelTurn: ModelTurn?, @SerializedName("inputTranscription") val inputTranscription: Transcription?, @SerializedName("outputTranscription") val outputTranscription: Transcription?)
+data class ServerContent(
+    @SerializedName("parts") val parts: List<Part>?,
+    @SerializedName("modelTurn") val modelTurn: ModelTurn?,
+    @SerializedName("inputTranscription") val inputTranscription: Transcription?,
+    @SerializedName("outputTranscription") val outputTranscription: Transcription?,
+    @SerializedName("turnComplete") val turnComplete: Boolean? // Added to capture turn completion
+)
 data class ModelTurn(@SerializedName("parts") val parts: List<Part>?)
 data class Part(@SerializedName("text") val text: String?, @SerializedName("inlineData") val inlineData: InlineData?)
 data class InlineData(@SerializedName("mime_type") val mimeType: String?, @SerializedName("data") val data: String?)
@@ -43,21 +52,23 @@ class MainActivity : AppCompatActivity() {
     private val mainScope = CoroutineScope(Dispatchers.Main)
     private val gson = Gson()
 
-    // State Management
+    // --- State Management ---
     private var sessionHandle: String? = null
     private val outputTranscriptBuffer = StringBuilder()
-    @Volatile private var isListening = false
+    @Volatile private var isListening = false // Master switch for the conversation
+    @Volatile private var isTemporarilyPaused = false // For automatic turn-taking
     @Volatile private var isSessionActive = false
     @Volatile private var isServerReady = false
 
-    // Simple Configuration
+    // --- Configuration (Simple Version) ---
+    
     private val models = listOf("gemini-2.5-flash-preview-native-audio-dialog", "gemini-2.0-flash-live-001", "gemini-2.5-flash-live-preview")
     private var selectedModel: String = models[0]
     private var apiVersions: List<ApiVersion> = emptyList()
     private var apiKeys: List<ApiKeyInfo> = emptyList()
     private var selectedApiVersionObject: ApiVersion? = null
     private var selectedApiKeyInfo: ApiKeyInfo? = null
-
+    
     private lateinit var requestPermissionLauncher: ActivityResultLauncher<String>
 
     companion object {
@@ -152,11 +163,20 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun handleMasterButton() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            checkPermissions()
+        if (!isServerReady && !isSessionActive) {
+            connect()
             return
         }
-        if (!isSessionActive) connect() else toggleListening()
+        if (!isServerReady) return
+
+        // This button now acts as a master start/stop for the whole conversation
+        isListening = !isListening
+        if (isListening) {
+            startAudio()
+        } else {
+            stopAudio()
+        }
+        updateUI()
     }
 
     private fun handleSettingsDisconnectButton() {
@@ -187,6 +207,8 @@ class MainActivity : AppCompatActivity() {
     private fun processServerMessage(text: String) {
         try {
             val response = gson.fromJson(text, ServerResponse::class.java)
+
+            // --- Session and Connection Management ---
             response.sessionResumptionUpdate?.let {
                 if (it.resumable == true && it.newHandle != null) {
                     sessionHandle = it.newHandle
@@ -195,8 +217,19 @@ class MainActivity : AppCompatActivity() {
                 }
             }
             response.goAway?.timeLeft?.let { showError("Connection closing in $it. Will reconnect.") }
+
+            // --- Automatic Turn-Taking Logic ---
+            val hasServerContent = response.serverContent != null || response.outputTranscription != null
+            if (hasServerContent && isListening && !isTemporarilyPaused) {
+                audioHandler.stopRecording()
+                isTemporarilyPaused = true
+                updateStatus("Server Speaking...")
+            }
+
+            // --- Transcript and Audio Processing ---
             val outputText = response.outputTranscription?.text ?: response.serverContent?.outputTranscription?.text
             if (outputText != null) outputTranscriptBuffer.append(outputText)
+
             val inputText = response.inputTranscription?.text ?: response.serverContent?.inputTranscription?.text
             if (inputText != null && inputText.isNotBlank()) {
                 if (outputTranscriptBuffer.isNotEmpty()) {
@@ -205,25 +238,27 @@ class MainActivity : AppCompatActivity() {
                 }
                 translationAdapter.addOrUpdateTranslation(inputText.trim(), true)
             }
-            val modelTurnParts = response.serverContent?.modelTurn?.parts ?: response.serverContent?.parts
-            modelTurnParts?.forEach { part ->
+            response.serverContent?.modelTurn?.parts?.forEach { part ->
                 part.inlineData?.data?.let { audioPlayer.playAudio(it) }
+            }
+
+            // --- Resume Listening After Server Finishes ---
+            if (response.serverContent?.turnComplete == true) {
+                if (isListening && isTemporarilyPaused) {
+                    audioHandler.startRecording()
+                    isTemporarilyPaused = false
+                    updateStatus("Listening...")
+                }
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error processing message: $text", e)
         }
     }
 
-    private fun toggleListening() {
-        if (!isServerReady) return
-        isListening = !isListening
-        if (isListening) startAudio() else stopAudio()
-        updateUI()
-    }
-
     private fun startAudio() {
         if (!::audioHandler.isInitialized) initializeComponentsDependentOnAudio()
         audioHandler.startRecording()
+        isTemporarilyPaused = false
         updateStatus("Listening...")
     }
 
@@ -233,6 +268,7 @@ class MainActivity : AppCompatActivity() {
             translationAdapter.addOrUpdateTranslation(outputTranscriptBuffer.toString().trim(), false)
             outputTranscriptBuffer.clear()
         }
+        isTemporarilyPaused = false
         updateStatus("Ready to listen")
     }
 
@@ -241,6 +277,7 @@ class MainActivity : AppCompatActivity() {
         isListening = false
         isSessionActive = false
         isServerReady = false
+        isTemporarilyPaused = false
         if (::audioHandler.isInitialized) audioHandler.stopRecording()
         webSocketClient?.disconnect()
         mainScope.launch {
@@ -256,20 +293,15 @@ class MainActivity : AppCompatActivity() {
 
     private fun updateUI() {
         binding.settingsBtn.text = if (isSessionActive) "Disconnect" else "Settings"
-        if (!isSessionActive) {
-            binding.micBtn.text = "Connect"
-            binding.micBtn.isEnabled = ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
-            binding.debugConnectBtn.isEnabled = true
-        } else {
-            binding.micBtn.isEnabled = isServerReady
-            binding.micBtn.text = when {
-                !isServerReady -> "Connecting..."
-                isListening -> "Stop"
-                else -> "Start Listening"
-            }
-            binding.debugConnectBtn.isEnabled = false
+        binding.micBtn.text = when {
+            !isSessionActive -> "Connect"
+            !isServerReady -> "Connecting..."
+            isListening -> "Stop"
+            else -> "Start Listening"
         }
-        binding.interimDisplay.visibility = if (isListening) View.VISIBLE else View.GONE
+        binding.micBtn.isEnabled = (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED)
+        binding.debugConnectBtn.isEnabled = !isSessionActive
+        binding.interimDisplay.visibility = if (isListening && !isTemporarilyPaused) View.VISIBLE else View.GONE
     }
 
     private fun updateStatus(message: String) {
