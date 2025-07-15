@@ -90,16 +90,31 @@ class MainActivity : AppCompatActivity() {
 
     private fun loadPreferences() {
         val prefs = getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE)
-        selectedModel = prefs.getString("selected_model", models[0]) ?: models[0]
+        val savedModelName = prefs.getString("selected_model", AVAILABLE_MODELS[0].modelName)
+        currentModelInfo = AVAILABLE_MODELS.find { it.modelName == savedModelName } ?: AVAILABLE_MODELS[0]
         sessionHandle = prefs.getString("session_handle", null)
     }
 
     private fun loadApiVersionsFromResources(context: Context) {
-        // ... (This function remains the same)
+        val rawApiVersions = context.resources.getStringArray(R.array.api_versions)
+        val parsedList = mutableListOf<ApiVersion>()
+        for (itemString in rawApiVersions) {
+            val parts = itemString.split("|", limit = 2)
+            parsedList.add(if (parts.size == 2) ApiVersion(parts[0].trim(), parts[1].trim()) else ApiVersion(itemString.trim(), itemString.trim()))
+        }
+        apiVersions = parsedList
+        selectedApiVersionObject = parsedList.firstOrNull { it.value == getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE).getString("api_version", null) } ?: parsedList.firstOrNull()
     }
 
     private fun loadApiKeysFromResources(context: Context) {
-        // ... (This function remains the same)
+        val rawApiKeys = context.resources.getStringArray(R.array.api_keys)
+        val parsedList = mutableListOf<ApiKeyInfo>()
+        for (itemString in rawApiKeys) {
+            val parts = itemString.split(":", limit = 2)
+            if (parts.size == 2) parsedList.add(ApiKeyInfo(parts[0].trim(), parts[1].trim()))
+        }
+        apiKeys = parsedList
+        selectedApiKeyInfo = parsedList.firstOrNull { it.value == getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE).getString("api_key", null) } ?: apiKeys.firstOrNull()
     }
 
     private fun setupUI() {
@@ -248,15 +263,30 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateUI() {
-        // ... (This function remains the same)
+        binding.settingsBtn.text = if (isSessionActive) "Disconnect" else "Settings"
+        if (!isSessionActive) {
+            binding.micBtn.text = if(currentModelInfo.supportsAudioInput) "Connect" else "Transcribe"
+            binding.micBtn.isEnabled = ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+            binding.debugConnectBtn.isEnabled = true
+        } else {
+            binding.micBtn.isEnabled = isServerReady
+            binding.micBtn.text = when {
+                !isServerReady -> "Connecting..."
+                isListening -> "Stop"
+                else -> "Start Listening"
+            }
+            binding.debugConnectBtn.isEnabled = false
+        }
+        binding.interimDisplay.visibility = if (isListening) View.VISIBLE else View.GONE
     }
 
     private fun updateStatus(message: String) {
-        // ... (This function remains the same)
+        binding.statusText.text = "Status: $message"
     }
 
     private fun showError(message: String) {
-        // ... (This function remains the same)
+        Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+        updateStatus("Alert: $message")
     }
 
     private fun checkPermissions() {
@@ -268,7 +298,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateDisplayInfo() {
-        // ... (This function remains the same)
+        val currentApiVersionDisplayName = selectedApiVersionObject?.displayName ?: "N/A"
+        val currentApiKeyDisplayName = selectedApiKeyInfo?.displayName ?: "N/A"
+        binding.configDisplay.text = "Model: ${currentModelInfo.displayName} | Version: $currentApiVersionDisplayName | Key: $currentApiKeyDisplayName"
     }
 
     override fun onDestroy() {
