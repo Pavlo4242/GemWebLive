@@ -76,21 +76,21 @@ class MainActivity : AppCompatActivity() {
         // This list is now the single source of truth for model capabilities
         val AVAILABLE_MODELS = listOf(
             ModelInfo(
-                modelName = "gemini-1.5-flash-preview",
+                modelName = "models/gemini-2.5-flash-preview-native-audio-dialog",
                 displayName = "Live (Audio In/Out)",
                 supportsAudioInput = true,
                 outputType = OutputType.AUDIO_AND_TEXT,
                 supportsSystemInstruction = true
             ),
             ModelInfo(
-                modelName = "gemini-1.5-pro-preview", // Example
+                modelName = "gemini-2.5-flash-live-preview", // Example
                 displayName = "Transcribe (Text In/Out)",
                 supportsAudioInput = false,
                 outputType = OutputType.TEXT_ONLY,
                 supportsSystemInstruction = true
             ),
             ModelInfo(
-                modelName = "some-other-model", // Example
+                modelName = "gemini-2.0-flash-live-001", // Example
                 displayName = "Assistant (Audio In / Text Out)",
                 supportsAudioInput = true,
                 outputType = OutputType.TEXT_ONLY,
