@@ -79,8 +79,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var audioPlayer: AudioPlayer
     private val mainScope = CoroutineScope(Dispatchers.Main)
     private val gson = Gson()
-
-    // --- NEW: State for session handle and transcript buffering ---
+    
     private var sessionHandle: String? = null
     private val outputTranscriptBuffer = StringBuilder()
 
@@ -99,7 +98,9 @@ class MainActivity : AppCompatActivity() {
     private var apiKeys: List<ApiKeyInfo> = emptyList()
     private var selectedApiVersionObject: ApiVersion? = null
     private var selectedApiKeyInfo: ApiKeyInfo? = null
-
+    
+    //Text Input Functionality //
+    private lateinit var currentModelInfo: ModelInfo
 
     companion object {
         private const val TAG = "MainActivity"
@@ -225,16 +226,26 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun handleMasterButton() {
+    if (currentModelInfo.supportsAudioInput) {
+        // --- Live Audio Mode ---
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             checkPermissions()
             return
-        }
         if (!isSessionActive) {
             connect()
         } else {
             toggleListening()
         }
+    } else {
+        // --- Transcribe-Then-Send Mode ---
+        // 1. Launch Android's on-device SpeechRecognizer intent.
+        // 2. You will get the result back in onActivityResult.
+        // 3. In onActivityResult, place the transcribed text into an EditText.
+        // Note: The actual sending will be handled by a *different* "Send" button.
+        startOnDeviceSpeechToText() // This is a new function you would create.
     }
+}
+
 
     private fun handleSettingsDisconnectButton() {
         if (isSessionActive) {
@@ -244,6 +255,14 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+private fun startOnDeviceSpeechToText() {
+    if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this,arrayOf(android.Manifest.permission.RECORD_AUDIO),
+            1
+            )
+        }            
+
+    
     private fun showSettingsDialog() {
         val dialog = SettingsDialog(this, getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE), models)
         dialog.setOnDismissListener {
