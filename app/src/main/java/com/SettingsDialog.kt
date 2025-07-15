@@ -14,8 +14,11 @@ import com.gemweblive.ApiVersion
 import com.gemweblive.ApiKeyInfo
 
 
-class SettingsDialog(context: Context, private val prefs: SharedPreferences) : Dialog(context) {
-
+class SettingsDialog(
+    context: Context,
+    private val prefs: SharedPreferences,
+    private val models: List<String> // NEW: Constructor parameter for models
+) : Dialog(context) {
     private lateinit var binding: DialogSettingsBinding
 
     // These lists will hold the parsed data from resources
@@ -25,20 +28,29 @@ class SettingsDialog(context: Context, private val prefs: SharedPreferences) : D
     // These will hold the currently selected items
     private var selectedApiVersion: ApiVersion? = null
     private var selectedApiKeyInfo: ApiKeyInfo? = null
+    private var selectedModel: String = models.firstOrNull() ?: "" // NEW: Track selected model
+
 
     companion object {
         private const val TAG = "SettingsDialog"
     }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
+override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = DialogSettingsBinding.inflate(layoutInflater)
         setContentView(binding.root)
         setCancelable(false)
 
-        // Load data from resources into our lists
-        loadApiVersionsFromResources() // No context parameter needed here, Dialog has it
-        loadApiKeysFromResources()     // No context parameter needed here
+        // NEW: Set dialog window size
+        window?.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+
+        loadApiVersionsFromResources()
+        loadApiKeysFromResources()
+
+        // NEW: Load initial selected model from preferences
+        val currentModel = prefs.getString("selected_model", models.firstOrNull())
+        selectedModel = models.firstOrNull { it == currentModel } ?: models.firstOrNull() ?: ""
+
 
         setupViews()
     }
@@ -97,7 +109,7 @@ class SettingsDialog(context: Context, private val prefs: SharedPreferences) : D
     }
 
     // --- setupViews remains largely the same, but now uses correctly populated lists and selected items ---
-    private fun setupViews() {
+ private fun setupViews() {
         val currentVad = prefs.getInt("vad_sensitivity_ms", 800)
         binding.vadSensitivity.progress = currentVad
         binding.vadValue.text = "$currentVad ms"
@@ -107,12 +119,28 @@ class SettingsDialog(context: Context, private val prefs: SharedPreferences) : D
                 binding.vadValue.text = "$progress ms"
             }
             override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+            override fun fun onStopTrackingTouch(seekBar: SeekBar?) {}
         })
+
+        // Setup Model Spinner (NEW)
+        binding.modelSpinnerSettings.adapter = ArrayAdapter(context, android.R.layout.simple_spinner_item, models)
+        // Set initial selection for model spinner
+        selectedModel.let { initialModel ->
+            val modelPosition = models.indexOf(initialModel)
+            if (modelPosition != -1) {
+                binding.modelSpinnerSettings.setSelection(modelPosition)
+            }
+        }
+        binding.modelSpinnerSettings.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                selectedModel = models[position] // Update selectedModel when an item is chosen
+            }
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
+
 
         // Setup API Version Spinner
         binding.apiVersionSpinner.adapter = ArrayAdapter(context, android.R.layout.simple_spinner_item, apiVersionsList)
-        // Set spinner selection
         selectedApiVersion?.let { initialSelection ->
             val apiVersionPosition = apiVersionsList.indexOf(initialSelection)
             if (apiVersionPosition != -1) {
@@ -122,7 +150,6 @@ class SettingsDialog(context: Context, private val prefs: SharedPreferences) : D
 
         // Setup API Key Spinner
         binding.apiKeySpinner.adapter = ArrayAdapter(context, android.R.layout.simple_spinner_item, apiKeysList)
-        // Set spinner selection
         selectedApiKeyInfo?.let { initialSelection ->
             val apiKeyPosition = apiKeysList.indexOf(initialSelection)
             if (apiKeyPosition != -1) {
@@ -133,11 +160,11 @@ class SettingsDialog(context: Context, private val prefs: SharedPreferences) : D
         binding.saveSettingsBtn.setOnClickListener {
             prefs.edit().apply {
                 putInt("vad_sensitivity_ms", binding.vadSensitivity.progress)
-                // Save the actual 'value' of the selected ApiVersion object
+                putString("selected_model", selectedModel) // NEW: Save selected model
+                
                 val selectedApiVersionFromSpinner = apiVersionsList[binding.apiVersionSpinner.selectedItemPosition]
                 putString("api_version", selectedApiVersionFromSpinner.value)
 
-                // Save the actual 'value' of the selected ApiKeyInfo object
                 val selectedApiKeyFromSpinner = apiKeysList[binding.apiKeySpinner.selectedItemPosition]
                 putString("api_key", selectedApiKeyFromSpinner.value)
                 apply()
