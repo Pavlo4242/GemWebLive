@@ -26,11 +26,22 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
+        android:text="Model" />
+
+    <Spinner
+        android:id="@+id/modelSpinnerSettings"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
         android:text="API Version" />
 
     <Spinner
         android:id="@+id/apiVersionSpinner"
-        android:layout_width="match_parent"
+        android:layout_width="match_content"
         android:layout_height="wrap_content"
         android:entries="@array/api_versions" />
 
@@ -50,7 +61,7 @@
         android:id="@+id/saveSettingsBtn"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="end"
+        android:layout_gravity="center_horizontal"
         android:layout_marginTop="16dp"
         android:text="Save" />
 
