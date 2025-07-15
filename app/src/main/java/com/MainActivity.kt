@@ -1,8 +1,8 @@
-// app/src/main/java/com/gemweblive/MainActivity.kt
 package com.gemweblive
 
 import android.Manifest
 import android.app.Activity
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
@@ -22,7 +22,7 @@ import com.google.gson.annotations.SerializedName
 import kotlinx.coroutines.*
 import java.lang.StringBuilder
 
-// --- Data classes for parsing server responses ---
+// Data classes for parsing server responses
 data class ServerResponse(
     @SerializedName("serverContent") val serverContent: ServerContent?,
     @SerializedName("inputTranscription") val inputTranscription: Transcription?,
@@ -31,14 +31,12 @@ data class ServerResponse(
     @SerializedName("sessionResumptionUpdate") val sessionResumptionUpdate: SessionResumptionUpdate?,
     @SerializedName("goAway") val goAway: GoAway?
 )
-
 data class ServerContent(
     @SerializedName("parts") val parts: List<Part>?,
     @SerializedName("modelTurn") val modelTurn: ModelTurn?,
     @SerializedName("inputTranscription") val inputTranscription: Transcription?,
     @SerializedName("outputTranscription") val outputTranscription: Transcription?
 )
-
 data class ModelTurn(@SerializedName("parts") val parts: List<Part>?)
 data class Part(@SerializedName("text") val text: String?, @SerializedName("inlineData") val inlineData: InlineData?)
 data class InlineData(@SerializedName("mime_type") val mimeType: String?, @SerializedName("data") val data: String?)
@@ -57,14 +55,14 @@ class MainActivity : AppCompatActivity() {
     private val mainScope = CoroutineScope(Dispatchers.Main)
     private val gson = Gson()
 
-    // --- State Management ---
+    // State Management
     private var sessionHandle: String? = null
     private val outputTranscriptBuffer = StringBuilder()
     @Volatile private var isListening = false
     @Volatile private var isSessionActive = false
     @Volatile private var isServerReady = false
 
-    // --- Model and API Configuration ---
+    // Model and API Configuration
     private lateinit var currentModelInfo: ModelInfo
     private var apiVersions: List<ApiVersion> = emptyList()
     private var apiKeys: List<ApiKeyInfo> = emptyList()
@@ -73,26 +71,10 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         private const val TAG = "MainActivity"
-
         val AVAILABLE_MODELS = listOf(
-            ModelInfo(
-                modelName = "gemini-live-2.5-flash-preview",
-                displayName = "Live (Audio In / Audio Out)",
-                supportsAudioInput = true,
-                supportsAudioOutput = true
-            ),
-            ModelInfo(
-                modelName = "gemini-2.0-text-latest", // Example
-                displayName = "Transcribe (Text In / Text Out)",
-                supportsAudioInput = false,
-                supportsAudioOutput = false
-            ),
-            ModelInfo(
-                modelName = "gemini-2.0-audio-text-latest", // Example
-                displayName = "Assistant (Audio In / Text Out)",
-                supportsAudioInput = true,
-                supportsAudioOutput = false
-            )
+            ModelInfo("gemini-live-2.5-flash-preview", "Live (Audio In / Audio Out)", supportsAudioInput = true, supportsAudioOutput = true),
+            ModelInfo("gemini-2.0-text-latest", "Transcribe (Text In / Text Out)", supportsAudioInput = false, supportsAudioOutput = false),
+            ModelInfo("gemini-2.0-audio-text-latest", "Assistant (Audio In / Text Out)", supportsAudioInput = true, supportsAudioOutput = false)
         )
     }
 
@@ -104,7 +86,6 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // --- Initialization ---
         setupLaunchers()
         loadApiVersionsFromResources(this)
         loadApiKeysFromResources(this)
@@ -122,7 +103,6 @@ class MainActivity : AppCompatActivity() {
         requestPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
             if (isGranted) initializeComponentsDependentOnAudio() else showError("Microphone permission is required.")
         }
-
         speechRecognitionLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
             if (result.resultCode == Activity.RESULT_OK) {
                 val data = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
@@ -162,7 +142,7 @@ class MainActivity : AppCompatActivity() {
             if (parts.size == 2) parsedList.add(ApiKeyInfo(parts[0].trim(), parts[1].trim()))
         }
         apiKeys = parsedList
-        selectedApiKeyInfo = parsedList.firstOrNull { it.value == getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE).getString("api_key", null) } ?: parsedList.firstOrNull()
+        selectedApiKeyInfo = parsedList.firstOrNull { it.value == getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE).getString("api_key", null) } ?: apiKeys.firstOrNull()
     }
 
     private fun setupUI() {
@@ -171,13 +151,13 @@ class MainActivity : AppCompatActivity() {
             layoutManager = LinearLayoutManager(this@MainActivity)
             adapter = translationAdapter
         }
-        binding.debugConnectBtn.setOnClickListener { handleDebugConnectButton() }
+        binding.debugConnectBtn.setOnClickListener { connect() }
         binding.micBtn.setOnClickListener { handleMasterButton() }
         binding.settingsBtn.setOnClickListener { handleSettingsDisconnectButton() }
-        binding.sendTextBtn.setOnClickListener { handleSendTextButton() } // Listener for the new button
+        binding.sendTextBtn.setOnClickListener { handleSendTextButton() }
         updateUI()
     }
-    
+
     private fun updateUiMode() {
         val isLiveAudioMode = currentModelInfo.supportsAudioInput
         binding.textInput.visibility = if (isLiveAudioMode) View.GONE else View.VISIBLE
@@ -195,40 +175,24 @@ class MainActivity : AppCompatActivity() {
 
     private fun prepareNewClient() {
         webSocketClient?.disconnect()
-
         val prefs = getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE)
         selectedApiVersionObject = apiVersions.firstOrNull { it.value == prefs.getString("api_version", null) } ?: apiVersions.firstOrNull()
         selectedApiKeyInfo = apiKeys.firstOrNull { it.value == prefs.getString("api_key", null) } ?: apiKeys.firstOrNull()
-
         webSocketClient = WebSocketClient(
             context = applicationContext,
-            modelName = currentModelInfo.modelName, // Use the name from ModelInfo
+            modelName = currentModelInfo.modelName,
             vadSilenceMs = getVadSensitivity(),
             apiVersion = selectedApiVersionObject?.value ?: "v1alpha",
             apiKey = selectedApiKeyInfo?.value ?: "",
             sessionHandle = sessionHandle,
-            onOpen = { mainScope.launch {
-                isSessionActive = true
-                updateStatus("Connected, awaiting server...")
-                updateUI()
-            }},
+            onOpen = { mainScope.launch { isSessionActive = true; updateStatus("Connected, awaiting server..."); updateUI() } },
             onMessage = { text -> mainScope.launch { processServerMessage(text) } },
-            onClosing = { _, _ -> mainScope.launch { teardownSession(reconnect = true) } }, // Attempt to reconnect on close
-            onFailure = { t -> mainScope.launch {
-                showError("Connection error: ${t.message}")
-                teardownSession()
-            }},
-            onSetupComplete = { mainScope.launch {
-                isServerReady = true
-                updateStatus(if(currentModelInfo.supportsAudioInput) "Ready to listen" else "Ready to transcribe")
-                updateUI()
-            }}
+            onClosing = { _, _ -> mainScope.launch { teardownSession(reconnect = true) } },
+            onFailure = { t -> mainScope.launch { showError("Connection error: ${t.message}"); teardownSession() } },
+            onSetupComplete = { mainScope.launch { isServerReady = true; updateStatus(if(currentModelInfo.supportsAudioInput) "Ready to listen" else "Ready to transcribe"); updateUI() } }
         )
     }
-
-    // --- Button Handlers ---
-    private fun handleDebugConnectButton() { connect() }
-
+    
     private fun handleMasterButton() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             checkPermissions()
@@ -271,7 +235,6 @@ class MainActivity : AppCompatActivity() {
         dialog.show()
     }
 
-    // --- Core Logic ---
     private fun getVadSensitivity(): Int = getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE).getInt("vad_sensitivity_ms", 800)
 
     private fun connect() {
@@ -301,7 +264,6 @@ class MainActivity : AppCompatActivity() {
     private fun processServerMessage(text: String) {
         try {
             val response = gson.fromJson(text, ServerResponse::class.java)
-
             response.sessionResumptionUpdate?.let {
                 if (it.resumable == true && it.newHandle != null) {
                     sessionHandle = it.newHandle
@@ -309,12 +271,9 @@ class MainActivity : AppCompatActivity() {
                     Log.i(TAG, "Session handle updated.")
                 }
             }
-
             response.goAway?.timeLeft?.let { showError("Connection closing in $it. Will reconnect.") }
-
             val outputText = response.outputTranscription?.text ?: response.serverContent?.outputTranscription?.text
             if (outputText != null) outputTranscriptBuffer.append(outputText)
-
             val inputText = response.inputTranscription?.text ?: response.serverContent?.inputTranscription?.text
             if (inputText != null && inputText.isNotBlank()) {
                 if (outputTranscriptBuffer.isNotEmpty()) {
@@ -323,13 +282,11 @@ class MainActivity : AppCompatActivity() {
                 }
                 translationAdapter.addOrUpdateTranslation(inputText.trim(), true)
             }
-
             val modelTurnParts = response.serverContent?.modelTurn?.parts ?: response.serverContent?.parts
             modelTurnParts?.forEach { part ->
                 part.inlineData?.data?.let { if (currentModelInfo.supportsAudioOutput) audioPlayer.playAudio(it) }
                 part.text?.let { if (!currentModelInfo.supportsAudioOutput) translationAdapter.addOrUpdateTranslation(it, false) }
             }
-
         } catch (e: Exception) {
             Log.e(TAG, "Error processing server message: $text", e)
         }
@@ -373,7 +330,7 @@ class MainActivity : AppCompatActivity() {
             updateUI()
             prepareNewClient()
             if (reconnect) {
-                delay(1000) // Brief delay before reconnecting
+                delay(1000)
                 connect()
             }
         }
@@ -382,7 +339,7 @@ class MainActivity : AppCompatActivity() {
     private fun updateUI() {
         binding.settingsBtn.text = if (isSessionActive) "Disconnect" else "Settings"
         if (!isSessionActive) {
-            binding.micBtn.text = "Connect"
+            binding.micBtn.text = if(currentModelInfo.supportsAudioInput) "Connect" else "Transcribe"
             binding.micBtn.isEnabled = ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
             binding.debugConnectBtn.isEnabled = true
         } else {
