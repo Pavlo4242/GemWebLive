@@ -1,4 +1,3 @@
-// app/src/main/java/com/gemweblive/WebSocketClient.kt
 package com.gemweblive
 
 import android.content.Context
@@ -67,9 +66,30 @@ class WebSocketClient(
 
     private fun sendConfigMessage() {
         try {
+            // SIMPLIFIED SETUP MESSAGE: Send only the model initially
             val config = mapOf(
                 "setup" to mapOf(
-                    "model" to "models/$model",
+                    "model" to "models/$model"
+                )
+            )
+
+            val configString = gson.toJson(config)
+            Log.d(TAG, "Sending config (length: ${configString.length}): $configString")
+            logFileWriter?.println("OUTGOING CONFIG FRAME: $configString")
+            webSocket?.send(configString)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to send config", e)
+        }
+    }
+
+fun sendInitialConfiguration() {
+        if (!isReady()) { // Ensure setup is complete before sending more config
+            Log.w(TAG, "WebSocket not ready to send initial configuration.")
+            return
+        }
+        try {
+            val initialConfig = mapOf(
+                "client_content" to mapOf( // Use client_content for subsequent configs if needed, or follow API specific methods.
                     "generationConfig" to mapOf(
                         "responseModalities" to listOf("AUDIO")
                     ),
@@ -87,18 +107,17 @@ class WebSocketClient(
                     )
                 )
             )
-
-            val configString = gson.toJson(config)
-            Log.d(TAG, "Sending config (length: ${configString.length}): $configString")
-            logFileWriter?.println("OUTGOING CONFIG FRAME: $configString")
+            val configString = gson.toJson(initialConfig)
+            Log.d(TAG, "Sending initial configuration (length: ${configString.length}): ${configString.take(500)}...")
+            logFileWriter?.println("OUTGOING INITIAL CONFIGURATION FRAME: $configString")
             webSocket?.send(configString)
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to send config", e)
+            Log.e(TAG, "Failed to send initial configuration", e)
         }
     }
 
     fun connect() {
-        Log.d(TAG, "Connect method in WebSocketClient called.") // <--- ADDED LOG FOR DEBUGGING
+        Log.d(TAG, "Connect method in WebSocketClient called.")
         if (isConnected) return
         Log.i(TAG, "Attempting to connect...")
 
@@ -129,7 +148,7 @@ class WebSocketClient(
                     }
                     logFileWriter?.println("---------------------------")
                     isConnected = true
-                    sendConfigMessage()
+                    sendConfigMessage() // Send the simplified setup message
                     onOpen()
                 }
             }
@@ -146,6 +165,9 @@ class WebSocketClient(
                                     isSetupComplete = true
                                     Log.i(TAG, "Server setup complete message received.")
                                     onSetupComplete()
+                                    // NEW: Send the detailed configuration AFTER setupComplete
+                                    // This is an example, you might need to adjust based on API specifics
+                                    sendInitialConfiguration() 
                                 }
                             }
                             else -> this@WebSocketClient.onMessage(text)
@@ -160,7 +182,6 @@ class WebSocketClient(
             override fun onMessage(webSocket: WebSocket, bytes: ByteString) {
                 scope.launch {
                     val base64Encoded = Base64.encodeToString(bytes.toByteArray(), Base64.NO_WRAP)
-                    // CORRECTED: String interpolation syntax from $(...) to ${...}
                     Log.d(TAG, "INCOMING BINARY FRAME (length: ${bytes.size}): ${base64Encoded.take(100)}...")
                     logFileWriter?.println("INCOMING BINARY FRAME (length: ${bytes.size}): $base64Encoded")
                 }
@@ -178,7 +199,6 @@ class WebSocketClient(
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
                 scope.launch {
                     Log.e(TAG, "WebSocket failure", t)
-                    // Log response body only if it's not null and can be read (it will be consumed)
                     val responseBodyString = response?.body?.string()?.take(500) ?: "N/A"
                     logFileWriter?.println("WEB_SOCKET_FAILURE: ${t.message}, ResponseCode=${response?.code}, ResponseBody=${responseBodyString}")
                     cleanup()
