@@ -29,6 +29,7 @@ class WebSocketClient(
     private val onClosing: (Int, String) -> Unit,
     private val onFailure: (Throwable) -> Unit,
     private val onSetupComplete: () -> Unit
+    private val modelInfo: ModelInfo,
 ) {
     private var webSocket: WebSocket? = null
     @Volatile private var isSetupComplete = false
@@ -165,9 +166,19 @@ class WebSocketClient(
 
     private fun sendConfigMessage() {
         try {
+            val setupConfig = mutableMapOf<String, Any>()
+
+            setupConfig["model"] = "models/${modelInfo.modelName}"
+
+            // --- Dynamically add parameters based on model capabilities ---
+
+            // Add system instruction ONLY if the model supports it
             // --- NEW: Split the instruction text into paragraphs ---
-            val instructionParts = SYSTEM_INSTRUCTION_TEXT.split(Regex("\n\n+")).map {
-                mapOf("text" to it.trim())
+            if (modelInfo.supportsSystemInstruction) {
+                val instructionParts = SYSTEM_INSTRUCTION_TEXT.split(Regex("\n\n+")).map {
+                    mapOf("text" to it.trim())
+                }
+                setupConfig["systemInstruction"] = mapOf("parts" to instructionParts)
             }
 
             val setupConfig = mutableMapOf<String, Any>(
