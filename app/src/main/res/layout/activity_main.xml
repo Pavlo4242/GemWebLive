@@ -94,4 +94,22 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toEndOf="@+id/micBtn"/>
 
+<EditText
+    android:id="@+id/textInput"
+    android:layout_width="0dp"
+    android:layout_height="wrap_content"
+    android:hint="Transcribed text will appear here..."
+    android:visibility="gone" app:layout_constraintStart_toStartOf="parent"
+    app:layout_constraintEnd_toStartOf="@+id/sendTextBtn"
+    app:layout_constraintBottom_toTopOf="@+id/micBtn" />
+
+<Button
+    android:id="@+id/sendTextBtn"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:text="Send"
+    android:visibility="gone" app:layout_constraintEnd_toEndOf="parent"
+    app:layoutconstraintTop_toTopOf="@id/textInput"
+    app:layout_constraintBottom_toBottomOf="@id/textInput" />
+    
 </androidx.constraintlayout.widget.ConstraintLayout>
