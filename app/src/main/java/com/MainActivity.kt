@@ -51,7 +51,7 @@ class MainActivity : AppCompatActivity() {
     @Volatile private var isServerReady = false
 
     // Simple Configuration
-    private val models = listOf("gemini-1.5-flash-preview", "gemini-1.5-pro-preview")
+    private val models = listOf("gemini-2.5-flash-preview-native-audio-dialog", "gemini-2.0-flash-live-001", "gemini-2.5-flash-live-preview")
     private var selectedModel: String = models[0]
     private var apiVersions: List<ApiVersion> = emptyList()
     private var apiKeys: List<ApiKeyInfo> = emptyList()
