@@ -17,12 +17,18 @@ data class ApiKeyInfo(
     override fun toString(): String = displayName
 }
 
-// --- NEW: Data class to define model capabilities ---
+enum class OutputType {
+    AUDIO_ONLY,
+    TEXT_ONLY,
+    AUDIO_AND_TEXT, // For models that provide both simultaneously
+    USER_CHOICE     // For the special case model
+}
+
 data class ModelInfo(
-    val modelName: String,              // The technical name for the API call
-    val displayName: String,            // The user-friendly name for the UI
+    val modelName: String,
+    val displayName: String,
     val supportsAudioInput: Boolean,
-    val supportsAudioOutput: Boolean
+    val outputType: OutputType // Use the new enum
 ) {
     // This override tells the ArrayAdapter in the Settings dialog how to display this object.
     override fun toString(): String = displayName
