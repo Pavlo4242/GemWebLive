@@ -76,18 +76,47 @@ class MainActivity : AppCompatActivity() {
         // This list is now the single source of truth for model capabilities
         val AVAILABLE_MODELS = listOf(
             ModelInfo(
-                modelName = "models/gemini-2.5-flash-preview-native-audio-dialog",
-                displayName = "Live (Audio In/Out)",
-                supportsAudioInput = true,
+                modelName = "gemini-2.5-flash-preview-native-audio-dialog",
+                displayName = "Live 2.5 Flash",
+                inputType = InputType.AUDIO,
                 outputType = OutputType.AUDIO_AND_TEXT,
-                supportsSystemInstruction = true
+                isLiveModel = true,
+                supportsSystemInstruction = true,
+                supportsInputAudioTranscription = true,
+                supportsOutputAudioTranscription = true,
+                supportsContextWindowCompression = true,
+                supportsSafetySettings = true,
+                supportsThinkingConfig = true
             ),
             ModelInfo(
                 modelName = "gemini-2.5-flash-live-preview", // Example
-                displayName = "Transcribe (Text In/Out)",
-                supportsAudioInput = false,
-                outputType = OutputType.TEXT_ONLY,
-                supportsSystemInstruction = true
+                displayName = "Native Live (Affective)",
+                inputType = InputType.AUDIO,
+                outputType = OutputType.AUDIO_AND_TEXT,
+                isLiveModel = true,
+                supportsSystemInstruction = true,
+                supportsInputAudioTranscription = true,
+                supportsOutputAudioTranscription = true,
+                supportsContextWindowCompression = true,
+                supportsSafetySettings = true,
+                supportsThinkingConfig = true,
+                supportsAffectiveDialog = true, // Native feature
+                supportsProactivity = true      // Native feature
+            ),
+            ModelInfo(
+                modelName = "gemini-2.0-flash-live-001", // Example
+                displayName = "Assistant (Audio In / Text Out)",
+                inputType = InputType.AUDIO,
+                outputType = OutputType.AUDIO_AND_TEXT,
+                isLiveModel = true,
+                supportsSystemInstruction = true,
+                supportsInputAudioTranscription = true,
+                supportsOutputAudioTranscription = true,
+                supportsContextWindowCompression = true,
+                supportsSafetySettings = true,
+                supportsThinkingConfig = true,
+                supportsAffectiveDialog = false, // Native feature
+                supportsProactivity = false      // Native feature
             ),
             ModelInfo(
                 modelName = "gemini-2.0-flash-live-001", // Example
