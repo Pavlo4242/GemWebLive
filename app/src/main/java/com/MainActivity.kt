@@ -39,7 +39,8 @@ class MainActivity : AppCompatActivity() {
         "gemini-2.5-flash-preview-native-audio-dialog",
         "gemini-2.0-flash-live-001"
     )
-    private var selectedModel = models[0] // Default to first model
+    // No longer directly selected here, but loaded from prefs
+    private var selectedModel: String = models[0] // Default for initial load if no prefs
 
     private var apiVersions: List<ApiVersion> = emptyList()
     private var apiKeys: List<ApiKeyInfo> = emptyList()
@@ -62,9 +63,15 @@ class MainActivity : AppCompatActivity() {
         loadApiVersionsFromResources(this)
         loadApiKeysFromResources(this)
 
+        // NEW: Load selected model from preferences
+        val prefs = getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE)
+        selectedModel = prefs.getString("selected_model", models[0]) ?: models[0]
+
+
         // NEW LOGGING: Check loaded lists immediately after loading
         Log.d(TAG, "Loaded API Versions: ${apiVersions.size} items. Selected: ${selectedApiVersionObject?.displayName} (${selectedApiVersionObject?.value})")
         Log.d(TAG, "Loaded API Keys: ${apiKeys.size} items. Selected: ${selectedApiKeyInfo?.displayName} (${selectedApiKeyInfo?.value})")
+        Log.d(TAG, "Loaded Model: $selectedModel") // NEW Log for model
 
 
         requestPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted: Boolean ->
@@ -80,22 +87,20 @@ class MainActivity : AppCompatActivity() {
         checkPermissions()
 
         setupUI()
+        updateDisplayInfo() // NEW: Update display info on startup
     }
 
-    // --- loadApiVersionsFromResources method (remains as last provided) ---
+    // --- loadApiVersionsFromResources method (remains as last provided, with warning change) ---
     private fun loadApiVersionsFromResources(context: Context) {
         val rawApiVersions = context.resources.getStringArray(R.array.api_versions)
         val parsedList = mutableListOf<ApiVersion>()
 
         for (itemString in rawApiVersions) {
-            // Corrected parsing: Assuming items can be "DisplayName|Value" or just "Value"
             val parts = itemString.split("|", limit = 2)
 
             if (parts.size == 2) {
                 parsedList.add(ApiVersion(parts[0].trim(), parts[1].trim()))
             } else {
-                // If no delimiter, use the entire string for both display and value
-                // Changed from Error to Warning as it's handled gracefully
                 Log.w(TAG, "API version item in resources: '$itemString' does not contain '|'. Using as DisplayName|Value.")
                 parsedList.add(ApiVersion(itemString.trim(), itemString.trim()))
             }
@@ -147,39 +152,8 @@ class MainActivity : AppCompatActivity() {
             adapter = translationAdapter
         }
 
-        binding.modelSpinner.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, models)
-        binding.modelSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                if (selectedModel != models[position]) {
-                    selectedModel = models[position]
-                    if (isSessionActive) {
-                        Toast.makeText(this@MainActivity, "Changing model requires reconnect", Toast.LENGTH_SHORT).show()
-                        teardownSession(reconnect = true)
-                    }
-                }
-            }
-            override fun onNothingSelected(parent: AdapterView<*>?) {}
-        }
-
-        binding.apiVersionSpinner.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, apiVersions)
-        selectedApiVersionObject?.let { initialSelection ->
-            binding.apiVersionSpinner.setSelection(apiVersions.indexOf(initialSelection))
-        }
-
-        binding.apiVersionSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                val newlySelectedApiVersionObject = apiVersions[position]
-                if (selectedApiVersionObject != newlySelectedApiVersionObject) {
-                    selectedApiVersionObject = newlySelectedApiVersionObject
-                    Log.d(TAG, "Spinner selected API Version: ${selectedApiVersionObject?.displayName} (${selectedApiVersionObject?.value})")
-                    if (isSessionActive) {
-                        Toast.makeText(this@MainActivity, "Changing API version requires reconnect", Toast.LENGTH_SHORT).show()
-                        teardownSession(reconnect = true)
-                    }
-                }
-            }
-            override fun onNothingSelected(parent: AdapterView<*>?) {}
-        }
+        // REMOVED: Model Spinner from main UI
+        // REMOVED: API Version Spinner from main UI
 
         // NEW: Debug Connect Button Click Listener
         binding.debugConnectBtn.setOnClickListener { handleDebugConnectButton() }
@@ -205,12 +179,20 @@ class MainActivity : AppCompatActivity() {
             webSocketClient.disconnect()
         }
 
+        // Reload preferences to ensure latest saved values are used
+        val prefs = getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE)
+        selectedModel = prefs.getString("selected_model", models[0]) ?: models[0]
+        selectedApiVersionObject = apiVersions.firstOrNull { it.value == prefs.getString("api_version", null) } ?: apiVersions.firstOrNull()
+        selectedApiKeyInfo = apiKeys.firstOrNull { it.value == prefs.getString("api_key", null) } ?: apiKeys.firstOrNull()
+
+
         Log.d(TAG, "prepareNewClient: Using API Version: ${selectedApiVersionObject?.value ?: "fallback_v1alpha"}")
         Log.d(TAG, "prepareNewClient: Using API Key: ${selectedApiKeyInfo?.value?.take(5) ?: "fallback_empty"}...")
+        Log.d(TAG, "prepareNewClient: Using Model: $selectedModel") // NEW log for model
         
         webSocketClient = WebSocketClient(
             context = applicationContext,
-            model = selectedModel,
+            model = selectedModel, // Use selectedModel from preferences
             vadSilenceMs = getVadSensitivity(),
             apiVersion = selectedApiVersionObject?.value ?: "v1alpha",
             apiKey = selectedApiKeyInfo?.value ?: "",
@@ -252,14 +234,8 @@ class MainActivity : AppCompatActivity() {
     // NEW: Handler for the Debug Connect Button
     private fun handleDebugConnectButton() {
         Log.d(TAG, "handleDebugConnectButton: Debug Connect clicked. Forcing connection attempt.")
-        // This button bypasses the isSessionActive check, directly attempts to connect.
-        // It still respects microphone permission needed for actual streaming after connection.
-       // if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-       //     Log.w(TAG, "handleDebugConnectButton: RECORD_AUDIO permission not granted. Requesting before connect.")
-       //     checkPermissions() // Request permission, connect will happen via initializeComponentsDependentOnAudio
-      //  } else {
-        connect() // If permission is already granted, connect directly
-      //  }
+        // Directly call connect() to bypass the permission check for the button's action
+        connect()
     }
 
 
@@ -286,7 +262,21 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showSettingsDialog() {
-        val dialog = SettingsDialog(this, getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE))
+        // Pass the models list to the SettingsDialog
+        val dialog = SettingsDialog(this, getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE), models)
+        dialog.setOnDismissListener {
+            // This listener is called when the dialog is dismissed (e.g., Save button clicked)
+            // Reload preferences and update UI to reflect new settings
+            val prefs = getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE)
+            selectedModel = prefs.getString("selected_model", models[0]) ?: models[0]
+            selectedApiVersionObject = apiVersions.firstOrNull { it.value == prefs.getString("api_version", null) } ?: apiVersions.firstOrNull()
+            selectedApiKeyInfo = apiKeys.firstOrNull { it.value == prefs.getString("api_key", null) } ?: apiKeys.firstOrNull()
+            updateDisplayInfo() // Update the main screen's config display
+            if (isSessionActive) {
+                Toast.makeText(this, "Settings saved. Please Disconnect and Connect to apply.", Toast.LENGTH_LONG).show()
+                teardownSession(reconnect = true) // Optionally reconnect immediately
+            }
+        }
         dialog.show()
     }
 
@@ -383,13 +373,14 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateUI() {
-        binding.modelSpinner.isEnabled = !isSessionActive
-        binding.apiVersionSpinner.isEnabled = !isSessionActive
+        // REMOVED: Model Spinner enablement
+        // REMOVED: API Version Spinner enablement
         binding.settingsBtn.text = if (isSessionActive) "Disconnect" else "Settings"
 
         if (!isSessionActive) {
             binding.micBtn.text = "Connect"
             binding.micBtn.isEnabled = ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+            // Debug button always enabled when not active session
             binding.debugConnectBtn.isEnabled = true
         } else {
             binding.micBtn.isEnabled = isServerReady
@@ -416,7 +407,7 @@ class MainActivity : AppCompatActivity() {
     private fun checkPermissions() {
         Log.d(TAG, "checkPermissions: Checking RECORD_AUDIO permission.")
         when {
-            ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED -> {
+            ContextCompat.checkSelfPermission(this, Manifest.Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED -> {
                 Log.d(TAG, "RECORD_AUDIO permission already granted.")
                 initializeComponentsDependentOnAudio()
             }
@@ -431,6 +422,16 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
+
+    // NEW FUNCTION: To update the main screen's configuration display
+    private fun updateDisplayInfo() {
+        val currentModelDisplayName = selectedModel
+        val currentApiVersionDisplayName = selectedApiVersionObject?.displayName ?: "N/A"
+        val currentApiKeyDisplayName = selectedApiKeyInfo?.displayName ?: "N/A"
+
+        binding.configDisplay.text = "Using Model: $currentModelDisplayName | Version: $currentApiVersionDisplayName | Key: $currentApiKeyDisplayName"
+    }
+
 
     override fun onDestroy() {
         super.onDestroy()
