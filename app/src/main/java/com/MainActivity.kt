@@ -62,7 +62,9 @@ class MainActivity : AppCompatActivity() {
     @Volatile private var isServerReady = false
 
     // --- Configuration (Simple Version) ---
-    
+    private var reconnectAttempts = 0
+    private val maxReconnectAttempts = 5
+
     private val models = listOf("gemini-2.5-flash-preview-native-audio-dialog", "gemini-2.0-flash-live-001", "gemini-2.5-flash-live-preview")
     private var selectedModel: String = models[0]
     private var apiVersions: List<ApiVersion> = emptyList()
@@ -181,6 +183,7 @@ class MainActivity : AppCompatActivity() {
                 isSessionActive = true
                 updateStatus("Connected, configuring server...")
                 updateUI()
+                reconnectAttempts = 0 // Reset on successful connection
             } },
             onMessage = { text -> mainScope.launch { processServerMessage(text) } },
             onClosing = { code, reason -> mainScope.launch {
@@ -260,15 +263,19 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun connect() {
-        if (isSessionActive) {
-            Log.w(TAG, "connect: Already connected or connecting.")
-            return
-        }
-        Log.i(TAG, "connect: Attempting to establish WebSocket connection.")
-        updateStatus("Connecting...")
-        updateUI()
-        webSocketClient?.connect()
+    if (isSessionActive) {
+        Log.w(TAG, "connect: Already connected or connecting.")
+        return
     }
+    // Reset reconnect attempts on a new manual connection
+    if (!isSessionActive) {
+        reconnectAttempts = 0
+    }
+    Log.i(TAG, "connect: Attempting to establish WebSocket connection.")
+    updateStatus("Connecting...")
+    updateUI()
+    webSocketClient?.connect()
+}
 
     private fun processServerMessage(text: String) {
         Log.v(TAG, "processServerMessage: Received raw message: ${text.take(500)}...")
@@ -375,12 +382,20 @@ class MainActivity : AppCompatActivity() {
             if (!reconnect) updateStatus("Disconnected")
             updateUI()
             prepareNewClient()
-            if (reconnect) {
-                Log.i(TAG, "Attempting to reconnect after 1 second.")
-                delay(1000)
-                connect()
-            }
+            if (reconnect && reconnectAttempts < maxReconnectAttempts) {
+            reconnectAttempts++
+            val delayMillis = (1000 * Math.pow(2.0, reconnectAttempts.toDouble())).toLong()
+            Log.i(TAG, "Attempting to reconnect in ${delayMillis / 1000} seconds. (Attempt $reconnectAttempts)")
+            updateStatus("Connection lost. Reconnecting in ${delayMillis / 1000}s...")
+            delay(delayMillis)
+            connect()
+        } else if (reconnect) {
+            Log.e(TAG, "Max reconnect attempts reached. Will not reconnect.")
+            showError("Could not establish a connection. Please try again later.")
+            reconnectAttempts = 0 // Reset for next manual connection
         }
+    }
+}
     }
 
     private fun updateUI() {
