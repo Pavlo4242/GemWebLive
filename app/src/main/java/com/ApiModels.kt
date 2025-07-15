@@ -31,13 +31,28 @@ data class ModelInfo(
     val inputType: InputType,
     val outputType: OutputType,
 
+    // --- Capability Flags ---
     val supportsSystemInstruction: Boolean = false,
-    val supportsThinkingConfig: Boolean = false,
-    val supportsSafetySettings: Boolean = false,
+    val supportsThinkingConfig: Boolean = false, // Universal
+    val supportsSafetySettings: Boolean = true,  // Universal as per user request
+
+    // --- Live API / WebSocket Specific Flags ---
+    val isLiveModel: Boolean, // A flag to distinguish WebSocket-capable models
     val supportsInputAudioTranscription: Boolean = false,
     val supportsOutputAudioTranscription: Boolean = false,
-    val supportsContextWindowCompression: Boolean = false
+    val supportsContextWindowCompression: Boolean = false,
+
+    // --- Native Model Specific Flags ---
+    val supportsAffectiveDialog: Boolean = false,
+    val supportsProactivity: Boolean = false
 ) {
     override fun toString(): String = displayName
 }
 
+// Other data classes (ApiVersion, ApiKeyInfo) remain the same...
+data class ApiVersion(val displayName: String, val value: String) {
+    override fun toString(): String = displayName
+}
+data class ApiKeyInfo(val displayName: String, val value: String) {
+    override fun toString(): String = displayName
+}
