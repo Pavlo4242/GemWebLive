@@ -2,7 +2,6 @@
 package com.gemweblive
 
 import android.Manifest
-import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.util.Log
@@ -17,6 +16,7 @@ import com.gemweblive.databinding.ActivityMainBinding
 import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
 import kotlinx.coroutines.*
+import okhttp3.Response
 import java.lang.StringBuilder
 
 // --- Data classes for parsing server responses ---
@@ -61,10 +61,7 @@ class MainActivity : AppCompatActivity() {
     @Volatile private var isSessionActive = false
     @Volatile private var isServerReady = false
 
-    // --- Configuration (Simple Version) ---
-    private var reconnectAttempts = 0
-    private val maxReconnectAttempts = 5
-
+    // --- Configuration ---
     private val models = listOf("gemini-2.5-flash-preview-native-audio-dialog", "gemini-2.0-flash-live-001", "gemini-2.5-flash-live-preview")
     private var selectedModel: String = models[0]
     private var apiVersions: List<ApiVersion> = emptyList()
@@ -73,6 +70,10 @@ class MainActivity : AppCompatActivity() {
     private var selectedApiKeyInfo: ApiKeyInfo? = null
     
     private lateinit var requestPermissionLauncher: ActivityResultLauncher<String>
+
+    // --- Reconnection Logic ---
+    private var reconnectAttempts = 0
+    private val maxReconnectAttempts = 5
 
     companion object {
         private const val TAG = "MainActivity"
@@ -165,7 +166,7 @@ class MainActivity : AppCompatActivity() {
         prepareNewClient()
     }
 
-private fun prepareNewClient() {
+    private fun prepareNewClient() {
         webSocketClient?.disconnect()
         loadPreferences()
         selectedApiVersionObject = apiVersions.firstOrNull { it.value == getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE).getString("api_version", null) } ?: apiVersions.firstOrNull()
@@ -190,7 +191,7 @@ private fun prepareNewClient() {
                 Log.w(TAG, "WebSocket onClosing callback received: Code=$code, Reason=$reason")
                 teardownSession(reconnect = true)
             } },
-            // MODIFIED: This now correctly handles both the error and the response
+            // FIXED: This lambda now matches the corrected constructor signature
             onFailure = { t, response -> mainScope.launch {
                 Log.e(TAG, "WebSocket onFailure callback received.", t)
                 var errorMessage = "Connection error: ${t.message}"
@@ -212,6 +213,7 @@ private fun prepareNewClient() {
         )
         Log.i(TAG, "New WebSocketClient prepared.")
     }
+
     private fun handleMasterButton() {
         if (!isServerReady && !isSessionActive) {
             Log.d(TAG, "handleMasterButton: No active session, connecting.")
@@ -268,9 +270,7 @@ private fun prepareNewClient() {
             return
         }
         // Reset reconnect attempts on a new manual connection
-        if (!isSessionActive) {
-            reconnectAttempts = 0
-        }
+        reconnectAttempts = 0
         Log.i(TAG, "connect: Attempting to establish WebSocket connection.")
         updateStatus("Connecting...")
         updateUI()
@@ -369,7 +369,7 @@ private fun prepareNewClient() {
         updateStatus("Ready to listen")
     }
 
-   private fun teardownSession(reconnect: Boolean = false) {
+    private fun teardownSession(reconnect: Boolean = false) {
         if (!isSessionActive) return
         Log.w(TAG, "teardownSession: Tearing down session. Reconnect: $reconnect")
         isListening = false
@@ -396,8 +396,6 @@ private fun prepareNewClient() {
             }
         }
     }
-    
-} // <-- THIS IS THE BRACKET THAT WAS LIKELY MISSING
 
     private fun updateUI() {
         binding.settingsBtn.text = if (isSessionActive) "Disconnect" else "Settings"
