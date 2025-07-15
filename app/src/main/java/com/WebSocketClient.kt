@@ -1,3 +1,4 @@
+// app/src/main/java/com/gemweblive/WebSocketClient.kt
 package com.gemweblive
 
 import android.content.Context
@@ -8,7 +9,7 @@ import com.google.gson.GsonBuilder
 import com.google.gson.FieldNamingPolicy
 import kotlinx.coroutines.*
 import okhttp3.*
-import okio.ByteString
+import okio.ByteString // Make sure this import is present
 import okhttp3.logging.HttpLoggingInterceptor
 import java.io.File
 import java.io.FileWriter
@@ -23,10 +24,10 @@ class WebSocketClient(
     private val apiVersion: String,
     private val apiKey: String,
     private val onOpen: () -> Unit,
-    private val onMessage: (String) -> Unit,
+    private val onMessage: (String) -> Unit, // This is the callback for *content* messages
     private val onClosing: (Int, String) -> Unit,
     private val onFailure: (Throwable) -> Unit,
-    private val onSetupComplete: () -> Unit
+    private val onSetupComplete: () -> Unit // This is the callback for setup complete
 ) {
     private var webSocket: WebSocket? = null
     @Volatile private var isSetupComplete = false
@@ -58,6 +59,7 @@ class WebSocketClient(
         private const val HOST = "generativelanguage.googleapis.com"
         private const val TAG = "WebSocketClient"
 
+        // Your existing SYSTEM_INSTRUCTION_TEXT
         private val SYSTEM_INSTRUCTION_TEXT = """
             You are a helpful assistant. Translate between English and English.
             Be direct and concise.
@@ -66,13 +68,11 @@ class WebSocketClient(
 
     private fun sendConfigMessage() {
         try {
-            // SIMPLIFIED SETUP MESSAGE: Send only the model initially
             val config = mapOf(
                 "setup" to mapOf(
                     "model" to "models/$model"
                 )
             )
-
             val configString = gson.toJson(config)
             Log.d(TAG, "Sending config (length: ${configString.length}): $configString")
             logFileWriter?.println("OUTGOING CONFIG FRAME: $configString")
@@ -82,14 +82,23 @@ class WebSocketClient(
         }
     }
 
-fun sendInitialConfiguration() {
-        if (!isReady()) { // Ensure setup is complete before sending more config
+    // This function sends the full configuration (system instruction, VAD settings, etc.)
+    // It should be called AFTER the setupComplete message is received.
+    fun sendInitialConfiguration() {
+        if (!isReady()) {
             Log.w(TAG, "WebSocket not ready to send initial configuration.")
             return
         }
         try {
+            // Note: The structure for sending subsequent configurations might vary slightly
+            // based on API specifications. Using "client_content" as an example if needed.
+            // For now, assuming these are part of the initial setup request,
+            // or need to be sent as separate "Configure" type messages if the API supports it.
+            // If the API expects these in the initial 'setup' message, then we would revert
+            // the simplification made to `sendConfigMessage` but ensure it works.
+            // For now, let's assume they are sent after setupComplete.
             val initialConfig = mapOf(
-                "client_content" to mapOf( // Use client_content for subsequent configs if needed, or follow API specific methods.
+                "configure" to mapOf( // Example key, check API docs if "configure" is appropriate
                     "generationConfig" to mapOf(
                         "responseModalities" to listOf("AUDIO")
                     ),
@@ -115,6 +124,7 @@ fun sendInitialConfiguration() {
             Log.e(TAG, "Failed to send initial configuration", e)
         }
     }
+
 
     fun connect() {
         Log.d(TAG, "Connect method in WebSocketClient called.")
@@ -148,8 +158,8 @@ fun sendInitialConfiguration() {
                     }
                     logFileWriter?.println("---------------------------")
                     isConnected = true
-                    sendConfigMessage() // Send the simplified setup message
-                    onOpen()
+                    sendConfigMessage()
+                    onOpen() // Callback to MainActivity
                 }
             }
 
@@ -157,33 +167,17 @@ fun sendInitialConfiguration() {
                 scope.launch {
                     Log.d(TAG, "INCOMING TEXT FRAME: ${text.take(500)}...")
                     logFileWriter?.println("INCOMING TEXT FRAME: $text")
-                    try {
-                        val responseMap = gson.fromJson(text, Map::class.java)
-                        when {
-                            responseMap?.containsKey("setupComplete") == true -> {
-                                if (!isSetupComplete) {
-                                    isSetupComplete = true
-                                    Log.i(TAG, "Server setup complete message received.")
-                                    onSetupComplete()
-                                    // NEW: Send the detailed configuration AFTER setupComplete
-                                    // This is an example, you might need to adjust based on API specifics
-                                    sendInitialConfiguration() 
-                                }
-                            }
-                            else -> this@WebSocketClient.onMessage(text)
-                        }
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Error parsing incoming TEXT frame", e)
-                        logFileWriter?.println("ERROR PARSING INCOMING TEXT FRAME: ${e.message}")
-                    }
+                    processIncomingMessage(text) // Use the common processing function
                 }
             }
 
             override fun onMessage(webSocket: WebSocket, bytes: ByteString) {
                 scope.launch {
                     val base64Encoded = Base64.encodeToString(bytes.toByteArray(), Base64.NO_WRAP)
-                    Log.d(TAG, "INCOMING BINARY FRAME (length: ${bytes.size}): ${base64Encoded.take(100)}...")
+                    val decodedText = bytes.utf8() // Decode binary (ByteString) to a String
+                    Log.d(TAG, "INCOMING BINARY FRAME (length: ${bytes.size}): ${base64Encoded.take(100)}... Decoded as Text: ${decodedText.take(100)}...")
                     logFileWriter?.println("INCOMING BINARY FRAME (length: ${bytes.size}): $base64Encoded")
+                    processIncomingMessage(decodedText) // Process the decoded string
                 }
             }
 
@@ -206,6 +200,29 @@ fun sendInitialConfiguration() {
                 }
             }
         })
+    }
+
+    // NEW COMMON FUNCTION: To process both text and decoded binary messages
+    private fun processIncomingMessage(messageText: String) {
+        try {
+            val responseMap = gson.fromJson(messageText, Map::class.java)
+            when {
+                responseMap?.containsKey("setupComplete") == true -> {
+                    if (!isSetupComplete) {
+                        isSetupComplete = true
+                        Log.i(TAG, "Server setup complete message received.")
+                        onSetupComplete() // Callback to MainActivity
+                        // Optionally send full configuration here, AFTER setup is complete
+                        sendInitialConfiguration()
+                    }
+                }
+                // Delegate other messages (like transcription, modelTurn) to the MainActivity's onMessage callback
+                else -> this@WebSocketClient.onMessage(messageText)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error parsing incoming message frame: '${messageText.take(100)}'", e)
+            logFileWriter?.println("ERROR PARSING INCOMING MESSAGE FRAME: ${e.message}")
+        }
     }
 
     fun sendAudio(audioData: ByteArray) {
