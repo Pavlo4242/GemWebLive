@@ -1,3 +1,4 @@
+//repaired added logging//
 package com.gemweblive
 
 import android.Manifest
@@ -79,6 +80,7 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        Log.d(TAG, "onCreate: Activity created.")
 
         loadApiVersionsFromResources()
         loadApiKeysFromResources()
@@ -86,7 +88,13 @@ class MainActivity : AppCompatActivity() {
 
         audioPlayer = AudioPlayer()
         requestPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
-            if (isGranted) initializeComponentsDependentOnAudio() else showError("Microphone permission is required.")
+            if (isGranted) {
+                Log.i(TAG, "RECORD_AUDIO permission granted.")
+                initializeComponentsDependentOnAudio()
+            } else {
+                Log.e(TAG, "RECORD_AUDIO permission denied.")
+                showError("Microphone permission is required.")
+            }
         }
 
         checkPermissions()
@@ -98,6 +106,7 @@ class MainActivity : AppCompatActivity() {
         val prefs = getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE)
         selectedModel = prefs.getString("selected_model", models[0]) ?: models[0]
         sessionHandle = prefs.getString("session_handle", null)
+        Log.d(TAG, "loadPreferences: Loaded model '$selectedModel' and session handle '$sessionHandle'")
     }
 
     private fun loadApiVersionsFromResources() {
@@ -109,6 +118,7 @@ class MainActivity : AppCompatActivity() {
         }
         apiVersions = parsedList
         selectedApiVersionObject = parsedList.firstOrNull { it.value == getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE).getString("api_version", null) } ?: parsedList.firstOrNull()
+        Log.d(TAG, "loadApiVersionsFromResources: Loaded ${apiVersions.size} API versions. Selected: ${selectedApiVersionObject?.displayName}")
     }
 
     private fun loadApiKeysFromResources() {
@@ -120,16 +130,27 @@ class MainActivity : AppCompatActivity() {
         }
         apiKeys = parsedList
         selectedApiKeyInfo = parsedList.firstOrNull { it.value == getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE).getString("api_key", null) } ?: apiKeys.firstOrNull()
+        Log.d(TAG, "loadApiKeysFromResources: Loaded ${apiKeys.size} API keys. Selected: ${selectedApiKeyInfo?.displayName}")
     }
 
     private fun setupUI() {
         translationAdapter = TranslationAdapter()
         binding.transcriptLog.layoutManager = LinearLayoutManager(this)
         binding.transcriptLog.adapter = translationAdapter
-        binding.debugConnectBtn.setOnClickListener { connect() }
-        binding.micBtn.setOnClickListener { handleMasterButton() }
-        binding.settingsBtn.setOnClickListener { handleSettingsDisconnectButton() }
+        binding.debugConnectBtn.setOnClickListener {
+            Log.d(TAG, "Debug Connect button clicked.")
+            connect()
+        }
+        binding.micBtn.setOnClickListener {
+            Log.d(TAG, "Master button clicked.")
+            handleMasterButton()
+        }
+        binding.settingsBtn.setOnClickListener {
+            Log.d(TAG, "Settings/Disconnect button clicked.")
+            handleSettingsDisconnectButton()
+        }
         updateUI()
+        Log.d(TAG, "setupUI: UI components initialized.")
     }
 
     private fun initializeComponentsDependentOnAudio() {
@@ -137,6 +158,7 @@ class MainActivity : AppCompatActivity() {
             audioHandler = AudioHandler(this) { audioData ->
                 webSocketClient?.sendAudio(audioData)
             }
+            Log.i(TAG, "AudioHandler initialized.")
         }
         prepareNewClient()
     }
@@ -154,23 +176,45 @@ class MainActivity : AppCompatActivity() {
             apiVersion = selectedApiVersionObject?.value ?: "v1beta",
             apiKey = selectedApiKeyInfo?.value ?: "",
             sessionHandle = sessionHandle,
-            onOpen = { mainScope.launch { isSessionActive = true; updateStatus("Connected..."); updateUI() } },
+            onOpen = { mainScope.launch {
+                Log.i(TAG, "WebSocket onOpen callback received.")
+                isSessionActive = true
+                updateStatus("Connected, configuring server...")
+                updateUI()
+            } },
             onMessage = { text -> mainScope.launch { processServerMessage(text) } },
-            onClosing = { _, _ -> mainScope.launch { teardownSession(reconnect = true) } },
-            onFailure = { t -> mainScope.launch { showError("Connection error: ${t.message}"); teardownSession() } },
-            onSetupComplete = { mainScope.launch { isServerReady = true; updateStatus("Ready to listen"); updateUI() } }
+            onClosing = { code, reason -> mainScope.launch {
+                Log.w(TAG, "WebSocket onClosing callback received: Code=$code, Reason=$reason")
+                teardownSession(reconnect = true)
+            } },
+            onFailure = { t -> mainScope.launch {
+                Log.e(TAG, "WebSocket onFailure callback received.", t)
+                showError("Connection error: ${t.message}")
+                teardownSession()
+            } },
+            onSetupComplete = { mainScope.launch {
+                Log.i(TAG, "WebSocket onSetupComplete callback received.")
+                isServerReady = true
+                updateStatus("Ready to listen")
+                updateUI()
+            } }
         )
+        Log.i(TAG, "New WebSocketClient prepared.")
     }
 
     private fun handleMasterButton() {
         if (!isServerReady && !isSessionActive) {
+            Log.d(TAG, "handleMasterButton: No active session, connecting.")
             connect()
             return
         }
-        if (!isServerReady) return
+        if (!isServerReady) {
+            Log.w(TAG, "handleMasterButton: Server not ready, ignoring.")
+            return
+        }
 
-        // This button now acts as a master start/stop for the whole conversation
         isListening = !isListening
+        Log.i(TAG, "handleMasterButton: Toggling listening state to: $isListening")
         if (isListening) {
             startAudio()
         } else {
@@ -180,12 +224,19 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun handleSettingsDisconnectButton() {
-        if (isSessionActive) teardownSession() else showSettingsDialog()
+        if (isSessionActive) {
+            Log.d(TAG, "handleSettingsDisconnectButton: Disconnecting session.")
+            teardownSession()
+        } else {
+            Log.d(TAG, "handleSettingsDisconnectButton: Showing settings dialog.")
+            showSettingsDialog()
+        }
     }
 
     private fun showSettingsDialog() {
         val dialog = SettingsDialog(this, getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE), models)
         dialog.setOnDismissListener {
+            Log.d(TAG, "SettingsDialog dismissed.")
             loadPreferences()
             updateDisplayInfo()
             if (isSessionActive) {
@@ -195,16 +246,25 @@ class MainActivity : AppCompatActivity() {
         dialog.show()
     }
 
-    private fun getVadSensitivity(): Int = getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE).getInt("vad_sensitivity_ms", 800)
+    private fun getVadSensitivity(): Int {
+        val sensitivity = getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE).getInt("vad_sensitivity_ms", 800)
+        Log.d(TAG, "getVadSensitivity: VAD sensitivity is $sensitivity ms.")
+        return sensitivity
+    }
 
     private fun connect() {
-        if (isSessionActive) return
+        if (isSessionActive) {
+            Log.w(TAG, "connect: Already connected or connecting.")
+            return
+        }
+        Log.i(TAG, "connect: Attempting to establish WebSocket connection.")
         updateStatus("Connecting...")
         updateUI()
         webSocketClient?.connect()
     }
 
     private fun processServerMessage(text: String) {
+        Log.v(TAG, "processServerMessage: Received raw message: ${text.take(500)}...")
         try {
             val response = gson.fromJson(text, ServerResponse::class.java)
 
@@ -213,14 +273,18 @@ class MainActivity : AppCompatActivity() {
                 if (it.resumable == true && it.newHandle != null) {
                     sessionHandle = it.newHandle
                     getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE).edit().putString("session_handle", sessionHandle).apply()
-                    Log.i(TAG, "Session handle updated.")
+                    Log.i(TAG, "Session handle updated and saved.")
                 }
             }
-            response.goAway?.timeLeft?.let { showError("Connection closing in $it. Will reconnect.") }
+            response.goAway?.timeLeft?.let {
+                Log.w(TAG, "Received GO_AWAY message. Time left: $it. Will reconnect.")
+                showError("Connection closing in $it. Will reconnect.")
+            }
 
             // --- Automatic Turn-Taking Logic ---
             val hasServerContent = response.serverContent != null || response.outputTranscription != null
             if (hasServerContent && isListening && !isTemporarilyPaused) {
+                Log.d(TAG, "Server is speaking, temporarily pausing user audio input.")
                 audioHandler.stopRecording()
                 isTemporarilyPaused = true
                 updateStatus("Server Speaking...")
@@ -228,23 +292,33 @@ class MainActivity : AppCompatActivity() {
 
             // --- Transcript and Audio Processing ---
             val outputText = response.outputTranscription?.text ?: response.serverContent?.outputTranscription?.text
-            if (outputText != null) outputTranscriptBuffer.append(outputText)
+            if (outputText != null) {
+                outputTranscriptBuffer.append(outputText)
+            }
 
             val inputText = response.inputTranscription?.text ?: response.serverContent?.inputTranscription?.text
             if (inputText != null && inputText.isNotBlank()) {
                 if (outputTranscriptBuffer.isNotEmpty()) {
-                    translationAdapter.addOrUpdateTranslation(outputTranscriptBuffer.toString().trim(), false)
+                    val fullTranslation = outputTranscriptBuffer.toString().trim()
+                    Log.d(TAG, "Displaying full translation: '$fullTranslation'")
+                    translationAdapter.addOrUpdateTranslation(fullTranslation, false)
                     outputTranscriptBuffer.clear()
                 }
+                Log.d(TAG, "Displaying user input: '$inputText'")
                 translationAdapter.addOrUpdateTranslation(inputText.trim(), true)
             }
             response.serverContent?.modelTurn?.parts?.forEach { part ->
-                part.inlineData?.data?.let { audioPlayer.playAudio(it) }
+                part.inlineData?.data?.let {
+                    Log.d(TAG, "Playing received audio chunk.")
+                    audioPlayer.playAudio(it)
+                }
             }
 
             // --- Resume Listening After Server Finishes ---
             if (response.serverContent?.turnComplete == true) {
+                Log.d(TAG, "Server turn complete.")
                 if (isListening && isTemporarilyPaused) {
+                    Log.d(TAG, "Resuming user audio input.")
                     audioHandler.startRecording()
                     isTemporarilyPaused = false
                     updateStatus("Listening...")
@@ -256,16 +330,25 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startAudio() {
-        if (!::audioHandler.isInitialized) initializeComponentsDependentOnAudio()
+        if (!::audioHandler.isInitialized) {
+            Log.d(TAG, "startAudio: Initializing audio components first.")
+            initializeComponentsDependentOnAudio()
+        }
+        Log.i(TAG, "startAudio: Starting audio recording.")
         audioHandler.startRecording()
         isTemporarilyPaused = false
         updateStatus("Listening...")
     }
 
     private fun stopAudio() {
-        if (::audioHandler.isInitialized) audioHandler.stopRecording()
+        if (::audioHandler.isInitialized) {
+            Log.i(TAG, "stopAudio: Stopping audio recording.")
+            audioHandler.stopRecording()
+        }
         if (outputTranscriptBuffer.isNotEmpty()) {
-            translationAdapter.addOrUpdateTranslation(outputTranscriptBuffer.toString().trim(), false)
+            val finalTranslation = outputTranscriptBuffer.toString().trim()
+            Log.d(TAG, "Displaying final buffered translation: '$finalTranslation'")
+            translationAdapter.addOrUpdateTranslation(finalTranslation, false)
             outputTranscriptBuffer.clear()
         }
         isTemporarilyPaused = false
@@ -274,6 +357,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun teardownSession(reconnect: Boolean = false) {
         if (!isSessionActive) return
+        Log.w(TAG, "teardownSession: Tearing down session. Reconnect: $reconnect")
         isListening = false
         isSessionActive = false
         isServerReady = false
@@ -285,6 +369,7 @@ class MainActivity : AppCompatActivity() {
             updateUI()
             prepareNewClient()
             if (reconnect) {
+                Log.i(TAG, "Attempting to reconnect after 1 second.")
                 delay(1000)
                 connect()
             }
@@ -302,21 +387,26 @@ class MainActivity : AppCompatActivity() {
         binding.micBtn.isEnabled = (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED)
         binding.debugConnectBtn.isEnabled = !isSessionActive
         binding.interimDisplay.visibility = if (isListening && !isTemporarilyPaused) View.VISIBLE else View.GONE
+        Log.d(TAG, "updateUI: UI updated with state - isSessionActive=$isSessionActive, isServerReady=$isServerReady, isListening=$isListening")
     }
 
     private fun updateStatus(message: String) {
         binding.statusText.text = "Status: $message"
+        Log.i(TAG, "Status Updated: $message")
     }
 
     private fun showError(message: String) {
         Toast.makeText(this, message, Toast.LENGTH_LONG).show()
         updateStatus("Alert: $message")
+        Log.e(TAG, "showError: $message")
     }
 
     private fun checkPermissions() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+            Log.i(TAG, "checkPermissions: RECORD_AUDIO permission already granted.")
             initializeComponentsDependentOnAudio()
         } else {
+            Log.i(TAG, "checkPermissions: Requesting RECORD_AUDIO permission.")
             requestPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
         }
     }
@@ -325,11 +415,14 @@ class MainActivity : AppCompatActivity() {
         val prefs = getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE)
         val currentApiVersion = apiVersions.firstOrNull { it.value == prefs.getString("api_version", null) } ?: apiVersions.firstOrNull()
         val currentApiKey = apiKeys.firstOrNull { it.value == prefs.getString("api_key", null) } ?: apiKeys.firstOrNull()
-        binding.configDisplay.text = "Model: $selectedModel | Version: ${currentApiVersion?.displayName ?: "N/A"} | Key: ${currentApiKey?.displayName ?: "N/A"}"
+        val infoText = "Model: $selectedModel | Version: ${currentApiVersion?.displayName ?: "N/A"} | Key: ${currentApiKey?.displayName ?: "N/A"}"
+        binding.configDisplay.text = infoText
+        Log.d(TAG, "updateDisplayInfo: $infoText")
     }
 
     override fun onDestroy() {
         super.onDestroy()
+        Log.w(TAG, "onDestroy: Activity is being destroyed.")
         audioPlayer.release()
         teardownSession()
         mainScope.cancel()
