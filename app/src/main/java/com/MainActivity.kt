@@ -390,7 +390,7 @@ class MainActivity : AppCompatActivity() {
         if (!isSessionActive) {
             binding.micBtn.text = "Connect"
             binding.micBtn.isEnabled = ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
-            binding.debugConnectBtn.isEnabled = ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED // NEW: Enable debug button with permission
+            binding.debugConnectBtn.isEnabled = true
         } else {
             binding.micBtn.isEnabled = isServerReady
             binding.micBtn.text = when {
