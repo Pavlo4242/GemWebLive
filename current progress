@@ -1,0 +1,5 @@
+MainBuild -- change websockt call to interpret the byte string -- see /SimpleWorking/ for deets
+
+we chagned the call now its sending the entire onfig 
+
+Mic neer gets enable have to use Debug Connecto to connect
