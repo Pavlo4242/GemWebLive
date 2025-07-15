@@ -6,9 +6,9 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.os.Bundle
 import android.util.Log
-import android.view.ViewGroup // ADD THIS LINE for ViewGroup reference
-import android.view.View // ADD THIS LINE for View reference
-import android.widget.AdapterView // ADD THIS LINE for AdapterView reference
+import android.view.ViewGroup
+import android.view.View
+import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.SeekBar
 import com.gemweblive.databinding.DialogSettingsBinding
@@ -44,8 +44,8 @@ class SettingsDialog(
 
         window?.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
 
-        loadApiVersionsFromResources()
-        loadApiKeysFromResources()
+        loadApiVersionsFromResources() // Correctly calls the private function below
+        loadApiKeysFromResources()     // Correctly calls the private function below
 
         val currentModel = prefs.getString("selected_model", models.firstOrNull())
         selectedModel = models.firstOrNull { it == currentModel } ?: models.firstOrNull() ?: ""
@@ -53,7 +53,59 @@ class SettingsDialog(
         setupViews()
     }
 
-    // ... (loadApiVersionsFromResources and loadApiKeysFromResources methods remain unchanged) ...
+    // --- Definition for loadApiVersionsFromResources ---
+    private fun loadApiVersionsFromResources() {
+        val rawApiVersions = context.resources.getStringArray(R.array.api_versions)
+        val parsedList = mutableListOf<ApiVersion>()
+
+        for (itemString in rawApiVersions) {
+            val parts = itemString.split("|", limit = 2)
+
+            if (parts.size == 2) {
+                parsedList.add(ApiVersion(parts[0].trim(), parts[1].trim()))
+            } else {
+                Log.w(TAG, "API version item in resources: '$itemString' does not contain '|'. Using as DisplayName|Value.")
+                parsedList.add(ApiVersion(itemString.trim(), itemString.trim()))
+            }
+        }
+        apiVersionsList = parsedList
+
+        val currentApiVersionValue = prefs.getString("api_version", null)
+        selectedApiVersion = parsedList.firstOrNull { it.value == currentApiVersionValue } ?: parsedList.firstOrNull()
+
+        if (selectedApiVersion == null && apiVersionsList.isNotEmpty()) {
+            selectedApiVersion = apiVersionsList[0]
+            Log.d(TAG, "loadApiVersions: Defaulted selectedApiVersionObject to first item: ${selectedApiVersion?.value}")
+        }
+        Log.d(TAG, "loadApiVersions: Loaded ${apiVersionsList.size} items. Initial selected: ${selectedApiVersion?.value}")
+    }
+
+    // --- Definition for loadApiKeysFromResources ---
+    private fun loadApiKeysFromResources() {
+        val rawApiKeys = context.resources.getStringArray(R.array.api_keys)
+        val parsedList = mutableListOf<ApiKeyInfo>()
+
+        for (itemString in rawApiKeys) {
+            val parts = itemString.split(":", limit = 2)
+
+            if (parts.size == 2) {
+                val displayName = parts[0].trim()
+                val value = parts[1].trim()
+                parsedList.add(ApiKeyInfo(displayName, value))
+            } else {
+                Log.e(TAG, "Malformed API key item in resources: '$itemString'. Expected 'DisplayName:Value' format.")
+            }
+        }
+        apiKeysList = parsedList
+        val currentApiKeyValue = prefs.getString("api_key", null)
+        selectedApiKeyInfo = parsedList.firstOrNull { it.value == currentApiKeyValue } ?: parsedList.firstOrNull()
+
+        if (selectedApiKeyInfo == null && apiKeysList.isNotEmpty()) {
+            selectedApiKeyInfo = apiKeysList[0]
+            Log.d(TAG, "loadApiKeys: Defaulted selectedApiKeyInfo to first item: ${selectedApiKeyInfo?.value}")
+        }
+        Log.d(TAG, "loadApiKeys: Loaded ${apiKeysList.size} items. Initial selected: ${selectedApiKeyInfo?.value?.take(5)}...")
+    }
 
     private fun setupViews() {
         val currentVad = prefs.getInt("vad_sensitivity_ms", 800)
@@ -65,8 +117,7 @@ class SettingsDialog(
                 binding.vadValue.text = "$progress ms"
             }
             override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-            // CORRECTED: Added 'override fun' for onStopTrackingTouch
-            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+            override fun fun onStopTrackingTouch(seekBar: SeekBar?) {} // Ensure 'override fun' is correct here too if it was 'fun onStopTrackingTouch'
         })
 
         // Setup Model Spinner
@@ -77,14 +128,12 @@ class SettingsDialog(
                 binding.modelSpinnerSettings.setSelection(modelPosition)
             }
         }
-        // CORRECTED: Wrapped the listener in 'object : AdapterView.OnItemSelectedListener' and added 'override fun'
         binding.modelSpinnerSettings.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
                 selectedModel = models[position]
             }
             override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
-
 
         // Setup API Version Spinner
         binding.apiVersionSpinner.adapter = ArrayAdapter(context, android.R.layout.simple_spinner_item, apiVersionsList)
