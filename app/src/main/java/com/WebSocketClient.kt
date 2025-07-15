@@ -23,7 +23,7 @@ class WebSocketClient(
     private val vadSilenceMs: Int,
     private val apiVersion: String,
     private val apiKey: String,
-    private val sessionHandle: String?, // NEW: Accept session handle
+    private val sessionHandle: String?,
     private val onOpen: () -> Unit,
     private val onMessage: (String) -> Unit,
     private val onClosing: (Int, String) -> Unit,
@@ -60,16 +60,38 @@ class WebSocketClient(
         private const val HOST = "generativelanguage.googleapis.com"
         private const val TAG = "WebSocketClient"
 
-        // System instructions remain the same
+        // The system instruction text remains a single block here for readability
         private val SYSTEM_INSTRUCTION_TEXT = """
             ### **LLM System Prompt: Bilingual Live Thai-English Interpreter (Pattaya Bar Scene)**
-            ...
+
+            **1. ROLE AND OBJECTIVE**
+
+            You are an expert, bilingual, real-time, Thai-English cultural and linguistic interpreter. Your operating environment is a lively, informal bar in Pattaya, Thailand. Your primary goal is to provide instantaneous, contextually accurate, and culturally equivalent translations **between spoken Thai and English**. You must capture the true intent, emotion, slang, and nuance of the original speaker for the listener, regardless of their native language.
+
+            **2. CORE PRINCIPLES**
+
+            * **Prioritize Intent Over Literal Translation:** Your primary function is to convey the speaker's true meaning, not the literal dictionary definition of their words, in both directions.
+            * **Deliver Cultural Equivalence:** For insults, compliments, jokes, and idioms, you must provide the closest *cultural equivalent* in the **target language** (modern, informal English or Thai), even if the phrasing is completely different.
+            * **Embrace the Context (Bar Setting):** All translations must reflect the informal, fast-paced, and often transactional or confrontational nature of a Pattaya bar. This applies whether the original speaker is Thai or a foreigner. Topics will include socializing, drinking, money, relationships, teasing, propositions, and aggression.
+            * **Handle Isaan Dialect:** When translating from Thai, recognize and accurately translate common Isaan words, capturing their specific regional meaning.
+            * **Be Concise:** Your output must be brief and direct, suitable for real-time comprehension.
+
+            **3. STRICT LANGUAGE CONSTRAINT PROTOCOL**
+
+            * **ABSOLUTE PROHIBITION:** You are strictly forbidden from identifying, processing, or translating any language other than modern Thai (including Isaan dialect) and modern informal English.
+            * ANY ERRORS SHOULD BE OUTPUT IN ENGLISH ONLY -- ERRORS in ENGLISH
+            * **FORCED INTERPRETATION:** All audio input **MUST** be interpreted as either Thai or English, even if it is phonetically ambiguous or sounds like another language (e.g., Mandarin, Cantonese). If you detect phonemes that could belong to another language, you must resolve the ambiguity by selecting the most plausible Thai or English word or phrase that fits the context.
+            * **RATIONALE:** Your processing pathways for other languages are considered disabled for this simulation. Acknowledging or translating any language other than Thai or English is a system failure.
         """.trimIndent()
     }
 
     private fun sendConfigMessage() {
         try {
-            // --- MODIFIED: Build a dynamic configuration map ---
+            // --- NEW: Split the instruction text into paragraphs ---
+            val instructionParts = SYSTEM_INSTRUCTION_TEXT.split(Regex("\n\n+")).map {
+                mapOf("text" to it.trim())
+            }
+
             val setupConfig = mutableMapOf<String, Any>(
                 "model" to "models/$model",
                 "generationConfig" to mapOf(
@@ -77,23 +99,18 @@ class WebSocketClient(
                 ),
                 "inputAudioTranscription" to emptyMap<String, Any>(),
                 "outputAudioTranscription" to emptyMap<String, Any>(),
-                "systemInstruction" to mapOf(
-                    "parts" to listOf(
-                        mapOf("text" to SYSTEM_INSTRUCTION_TEXT)
-                    )
-                ),
+                // --- MODIFIED: Use the new list of parts ---
+                "systemInstruction" to mapOf("parts" to instructionParts),
                 "realtimeInputConfig" to mapOf(
                     "automaticActivityDetection" to mapOf(
                         "silenceDurationMs" to vadSilenceMs
                     )
                 ),
-                // NEW: Add context window compression for longer sessions
                 "contextWindowCompression" to mapOf(
                     "slidingWindow" to emptyMap<String, Any>()
                 )
             )
 
-            // NEW: Add session resumption if a handle exists
             val sessionResumption = if (sessionHandle != null) {
                 mapOf("handle" to sessionHandle)
             } else {
@@ -102,17 +119,13 @@ class WebSocketClient(
             setupConfig["sessionResumption"] = sessionResumption
 
             val fullConfig = mapOf("setup" to setupConfig)
-
             val configString = gson.toJson(fullConfig)
-            Log.d(TAG, "Sending config: $configString")
-            logFileWriter?.println("OUTGOING CONFIG FRAME: $configString")
             webSocket?.send(configString)
 
         } catch (e: Exception) {
             Log.e(TAG, "Failed to send config", e)
         }
     }
-
 
     fun connect() {
         if (isConnected) return
