@@ -320,20 +320,23 @@ class WebSocketClient(
         }
     }
 
-    private fun cleanup() {
-        Log.w(TAG, "cleanup: Cleaning up WebSocket resources.")
-        if (isConnected) {
-            webSocket?.close(1000, "Normal closure initiated by client")
-            webSocket = null
-        }
-        logFileWriter?.println("--- Session Log End: ${java.util.Date()} ---")
-        logFileWriter?.flush()
-        logFileWriter?.close()
-        logFileWriter = null
-        isConnected = false
-        isSetupComplete = false
-        Log.i(TAG, "Cleanup complete.")
+private fun cleanup() {
+    Log.w(TAG, "cleanup: Cleaning up WebSocket resources.")
+    if (isConnected) {
+        webSocket?.close(1000, "Normal closure initiated by client")
+        webSocket = null
     }
+    // Close the writer before setting it to null
+    logFileWriter?.let {
+        it.println("--- Session Log End: ${java.util.Date()} ---")
+        it.flush()
+        it.close()
+    }
+    logFileWriter = null
+    isConnected = false
+    isSetupComplete = false
+    Log.i(TAG, "Cleanup complete.")
+}
 
     fun isReady(): Boolean = isConnected && isSetupComplete
 }
