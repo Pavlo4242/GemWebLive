@@ -21,6 +21,7 @@ import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
 import kotlinx.coroutines.*
 import java.lang.StringBuilder
+import java.util.Locale
 
 // Data classes for parsing server responses
 data class ServerResponse(
@@ -52,6 +53,7 @@ class MainActivity : AppCompatActivity() {
     private var webSocketClient: WebSocketClient? = null
     private lateinit var translationAdapter: TranslationAdapter
     private lateinit var audioPlayer: AudioPlayer
+    // private lateinit var ttsManager: TextToSpeechManager // We will add this
     private val mainScope = CoroutineScope(Dispatchers.Main)
     private val gson = Gson()
 
@@ -71,10 +73,29 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         private const val TAG = "MainActivity"
+        // This list is now the single source of truth for model capabilities
         val AVAILABLE_MODELS = listOf(
-            ModelInfo("gemini-live-2.5-flash-preview", "Live (Audio In / Audio Out)", supportsAudioInput = true, supportsAudioOutput = true),
-            ModelInfo("gemini-2.0-text-latest", "Transcribe (Text In / Text Out)", supportsAudioInput = false, supportsAudioOutput = false),
-            ModelInfo("gemini-2.0-audio-text-latest", "Assistant (Audio In / Text Out)", supportsAudioInput = true, supportsAudioOutput = false)
+            ModelInfo(
+                modelName = "gemini-1.5-flash-preview",
+                displayName = "Live (Audio In/Out)",
+                supportsAudioInput = true,
+                outputType = OutputType.AUDIO_AND_TEXT,
+                supportsSystemInstruction = true
+            ),
+            ModelInfo(
+                modelName = "gemini-1.5-pro-preview", // Example
+                displayName = "Transcribe (Text In/Out)",
+                supportsAudioInput = false,
+                outputType = OutputType.TEXT_ONLY,
+                supportsSystemInstruction = true
+            ),
+            ModelInfo(
+                modelName = "some-other-model", // Example
+                displayName = "Assistant (Audio In / Text Out)",
+                supportsAudioInput = true,
+                outputType = OutputType.TEXT_ONLY,
+                supportsSystemInstruction = false // This one doesn't support it
+            )
         )
     }
 
@@ -90,8 +111,8 @@ class MainActivity : AppCompatActivity() {
         loadApiVersionsFromResources(this)
         loadApiKeysFromResources(this)
         loadPreferences()
-
         audioPlayer = AudioPlayer()
+        // ttsManager = TextToSpeechManager(...) // To be added
 
         checkPermissions()
         setupUI()
@@ -115,7 +136,9 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
-
+    
+ // maybe } //
+ 
     private fun loadPreferences() {
         val prefs = getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE)
         val savedModelName = prefs.getString("selected_model", AVAILABLE_MODELS[0].modelName)
