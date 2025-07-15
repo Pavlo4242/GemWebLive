@@ -260,9 +260,10 @@ class WebSocketClient(
                     logFileWriter?.println("--> WEB_SOCKET_FAILURE: ${t.message}, ResponseCode=${response?.code}, ResponseBody=${responseBodyString}")
                     logFileWriter?.println("--> StackTrace: ${t.stackTraceToString()}")
                     cleanup()
-                    this@WebSocketClient.onFailure(t)
-                }
-            }
+                    // Pass the throwable and the response to the MainActivity
+                    this@WebSocketClient.onFailure(t, response) // Modified
+    }
+}
         })
     }
 
