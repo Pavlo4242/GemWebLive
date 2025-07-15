@@ -65,7 +65,7 @@ class MainActivity : AppCompatActivity() {
         private const val TAG = "MainActivity"
         val AVAILABLE_MODELS = listOf(
             ModelInfo(
-                modelName = "gemini-1.5-flash-preview",
+                modelName = "gemini-2.5-flash-preview-native-audio-dialog",
                 displayName = "Live (Flash Audio)",
                 inputType = InputType.AUDIO,
                 outputType = OutputType.AUDIO_AND_TEXT,
@@ -78,7 +78,17 @@ class MainActivity : AppCompatActivity() {
                 supportsThinkingConfig = true
             ),
             ModelInfo(
-                modelName = "gemini-1.5-pro-latest",
+                modelName = "gemini-2.0-flash-live-001",
+                displayName = "Transcribe (Text Only)",
+                inputType = InputType.TEXT,
+                outputType = OutputType.TEXT,
+                isLiveModel = false, // This model would use a REST client
+                supportsSystemInstruction = true,
+                supportsSafetySettings = true,
+                supportsThinkingConfig = true
+            ),
+            ModelInfo(
+                modelName = "gemini-2.5-flash-live-preview",
                 displayName = "Transcribe (Text Only)",
                 inputType = InputType.TEXT,
                 outputType = OutputType.TEXT,
