@@ -25,7 +25,6 @@ class ConfigBuilder(private val gson: Gson) {
         if (modelInfo.supportsSystemInstruction) {
             setupConfig["systemInstruction"] = mapOf("parts" to getSystemInstructionParts())
         }
-
         if (modelInfo.isLiveModel) {
             if (modelInfo.supportsInputAudioTranscription) {
                 setupConfig["inputAudioTranscription"] = emptyMap<String, Any>()
@@ -46,9 +45,9 @@ class ConfigBuilder(private val gson: Gson) {
                 generationConfig["proactivity"] = mapOf("proactiveAudio" to true)
             }
         }
-
-        val sessionResumption = sessionHandle?.let { mapOf("handle" to it) } ?: emptyMap()
-        setupConfig["sessionResumption"] = sessionResumption
+        sessionHandle?.let {
+            setupConfig["sessionResumption"] = mapOf("handle" to it)
+        }
 
         return gson.toJson(mapOf("setup" to setupConfig))
     }
@@ -63,8 +62,8 @@ class ConfigBuilder(private val gson: Gson) {
     }
 
     private fun getSystemInstructionParts(): List<Map<String, String>> {
-        val systemInstructionText = "
-          /*  |### **LLM System Prompt: Bilingual Live Thai-English Interpreter (Pattaya Bar Scene)**
+        val systemInstructionText = """
+            |### **LLM System Prompt: Bilingual Live Thai-English Interpreter (Pattaya Bar Scene)**
             |
             |**1. ROLE AND OBJECTIVE**
             |
@@ -160,8 +159,8 @@ class ConfigBuilder(private val gson: Gson) {
             |
             |* **TARGET LANGUAGE ONLY:** If the input is Thai, output **ONLY** the final English translation. If the input is English, output **ONLY** the final Thai translation.
             |* **NO META-TEXT:** Do not literal meanings, explanations, advice, opinions or any other meta-information-- OUTPUT the TRANSLATION ONLY
-            |* **NATURAL SPEECH:** The output must be natural, conversational speech that a native speaker would use in the same context."""
-            
+            |* **NATURAL SPEECH:** The output must be natural, conversational speech that a native speaker would use in the same context.
+        """.trimIndent() // NOTE: Add your full prompt back here
         return systemInstructionText.split(Regex("\n\n+")).map { mapOf("text" to it.trim()) }
     }
 }
