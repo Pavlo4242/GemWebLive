@@ -98,7 +98,7 @@ class WebSocketClient(
             // the simplification made to `sendConfigMessage` but ensure it works.
             // For now, let's assume they are sent after setupComplete.
             val initialConfig = mapOf(
-                "configure" to mapOf( // Example key, check API docs if "configure" is appropriate
+        //        "configure" to mapOf( // Example key, check API docs if "configure" is appropriate
                     "generationConfig" to mapOf(
                         "responseModalities" to listOf("AUDIO")
                     ),
