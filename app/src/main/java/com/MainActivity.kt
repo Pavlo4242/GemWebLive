@@ -407,7 +407,7 @@ class MainActivity : AppCompatActivity() {
     private fun checkPermissions() {
         Log.d(TAG, "checkPermissions: Checking RECORD_AUDIO permission.")
         when {
-            ContextCompat.checkSelfPermission(this, Manifest.Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED -> {
+            ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED -> {
                 Log.d(TAG, "RECORD_AUDIO permission already granted.")
                 initializeComponentsDependentOnAudio()
             }
