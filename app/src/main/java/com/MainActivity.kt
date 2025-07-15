@@ -187,9 +187,16 @@ class MainActivity : AppCompatActivity() {
                 Log.w(TAG, "WebSocket onClosing callback received: Code=$code, Reason=$reason")
                 teardownSession(reconnect = true)
             } },
-            onFailure = { t -> mainScope.launch {
+            onFailure = { t, response -> mainScope.launch { // Modified
                 Log.e(TAG, "WebSocket onFailure callback received.", t)
-                showError("Connection error: ${t.message}")
+                var errorMessage = "Connection error: ${t.message}"
+                if (response != null) {
+                    errorMessage += "\n(Code: ${response.code})"
+                    if (response.code == 404) {
+                        errorMessage = "Error: The server endpoint was not found (404). Please check the API version and key."
+                    }
+                }
+                showError(errorMessage)
                 teardownSession()
             } },
             onSetupComplete = { mainScope.launch {
