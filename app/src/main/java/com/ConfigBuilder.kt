@@ -6,25 +6,40 @@ import com.gemweblive.SafetySetting
 import com.google.gson.Gson
 
 class ConfigBuilder(private val gson: Gson) {
-
+/**
+     * Dynamically builds the WebSocket configuration JSON based on the
+     * capabilities defined in the ModelInfo object.
+     */
     fun buildWebSocketConfig(modelInfo: ModelInfo, sessionHandle: String?): String {
         val setupConfig = mutableMapOf<String, Any>()
 
+        // --- Core Model Identification ---
         setupConfig["model"] = "models/${modelInfo.modelName}"
 
         // --- Dynamically add parameters based on the ModelInfo blueprint ---
 
         if (modelInfo.supportsSystemInstruction) {
-            // (Your existing logic to add system instructions)
-            val instructionParts = getSystemInstructionParts()
-            setupConfig["systemInstruction"] = mapOf("parts" to instructionParts)
+            setupConfig["systemInstruction"] = mapOf("parts" to getSystemInstructionParts())
         }
 
-        if (modelInfo.inputType == com.gemweblive.InputType.AUDIO) {
+        if (modelInfo.supportsThinkingConfig) {
+            // As per the user's request, setting thinkingBudget to -1 (likely for unlimited)
+            setupConfig["thinkingConfig"] = mapOf("thinkingBudget" to -1)
+        }
+        
+        if (modelInfo.supportsSafetySettings) {
+            // As per the user's request, setting all categories to BLOCK_NONE
+            setupConfig["safetySettings"] = getDefaultSafetySettings().map { s ->
+                mapOf("category" to s.category, "threshold" to s.threshold)
+            }
+        }
+
+        // --- Live API Specific Parameters ---
+        if (modelInfo.inputType == InputType.AUDIO && modelInfo.supportsInputAudioTranscription) {
             setupConfig["inputAudioTranscription"] = emptyMap<String, Any>()
         }
 
-        if (modelInfo.outputType != com.gemweblive.OutputType.TEXT) {
+        if (modelInfo.outputType != OutputType.TEXT_ONLY && modelInfo.supportsOutputAudioTranscription) {
             setupConfig["outputAudioTranscription"] = emptyMap<String, Any>()
         }
         
@@ -32,26 +47,23 @@ class ConfigBuilder(private val gson: Gson) {
              setupConfig["contextWindowCompression"] = mapOf("slidingWindow" to emptyMap<String, Any>())
         }
 
-        modelInfo.supportedSafetySettings?.let {
-            setupConfig["safetySettings"] = it.map { s ->
-                mapOf("category" to s.category, "threshold" to s.threshold)
-            }
-        }
-        
-        modelInfo.defaultSpeechConfig?.let {
-             setupConfig["speechConfig"] = mapOf(
-                 "languageCode" to it.languageCode,
-                 "voiceConfig" to mapOf("prebuiltVoiceConfig" to mapOf("voiceName" to it.voiceName))
-             )
-        }
-
+        // --- Session Management (Always included for WebSocket) ---
         val sessionResumption = sessionHandle?.let { mapOf("handle" to it) } ?: emptyMap()
         setupConfig["sessionResumption"] = sessionResumption
 
-        return gson.toJson(mapOf("setup" to setupConfig))
+        // --- Final JSON structure ---
+        val fullConfig = mapOf("setup" to setupConfig)
+        return gson.toJson(fullConfig)
     }
-    
-    // You would add another function here, e.g., buildRestConfig(), for non-live mode.
+
+    private fun getDefaultSafetySettings(): List<SafetySetting> {
+        return listOf(
+            SafetySetting("HARM_CATEGORY_HARASSMENT", "BLOCK_NONE"),
+            SafetySetting("HARM_CATEGORY_HATE_SPEECH", "BLOCK_NONE"),
+            SafetySetting("HARM_CATEGORY_SEXUALLY_EXPLICIT", "BLOCK_NONE"),
+            SafetySetting("HARM_CATEGORY_DANGEROUS_CONTENT", "BLOCK_NONE")
+        )
+    }
 
     private fun getSystemInstructionParts(): List<Map<String, String>> {
         // This would contain your full system instruction text, split into paragraphs
