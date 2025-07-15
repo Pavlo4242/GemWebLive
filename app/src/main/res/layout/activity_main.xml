@@ -6,28 +6,20 @@
     android:layout_height="match_parent"
     tools:context=".MainActivity">
 
-    <Spinner
-        android:id="@+id/modelSpinner"
+    <TextView
+        android:id="@+id/configDisplay"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="16dp"
         android:layout_marginTop="16dp"
         android:layout_marginEnd="16dp"
+        android:text="Using Model: N/A | Version: N/A | Key: N/A"
+        android:textAlignment="center"
+        android:textStyle="bold"
+        android:textSize="16sp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
-
-    <Spinner
-        android:id="@+id/apiVersionSpinner"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="16dp"
-        android:layout_marginTop="8dp"
-        android:layout_marginEnd="16dp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/modelSpinner" />
-
 
     <TextView
         android:id="@+id/statusText"
@@ -40,9 +32,7 @@
         android:textAlignment="center"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/apiVersionSpinner" />
-
-    <androidx.recyclerview.widget.RecyclerView
+        app:layout_constraintTop_toBottomOf="@+id/configDisplay" /> <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/transcriptLog"
         android:layout_width="0dp"
         android:layout_height="0dp"
@@ -79,7 +69,9 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toStartOf="@+id/micBtn"
-        app:layout_constraintHorizontal_chainStyle="packed" /> <Button
+        app:layout_constraintHorizontal_chainStyle="packed" />
+
+    <Button
         android:id="@+id/micBtn"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
