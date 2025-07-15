@@ -286,6 +286,31 @@ class WebSocketClient(
         }
     }
 
+    fun sendText(text: String) {
+    if (!isReady()) return
+    scope.launch {
+        try {
+            // This structure is based on the BidiGenerateContentClientContent message type
+            val clientContentMessage = mapOf(
+                "clientContent" to mapOf(
+                    "turn" to mapOf(
+                         "parts" to listOf(
+                            mapOf("text" to text)
+                        )
+                    ),
+                    "turnComplete" to true
+                )
+            )
+
+            val messageToSend = gson.toJson(clientContentMessage)
+            Log.d(TAG, "OUTGOING TEXT FRAME: $messageToSend")
+            webSocket?.send(messageToSend)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to send text message", e)
+        }
+    }
+}
+
     fun sendAudio(audioData: ByteArray) {
         if (!isReady()) return
         scope.launch {
