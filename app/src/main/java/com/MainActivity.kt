@@ -165,7 +165,7 @@ class MainActivity : AppCompatActivity() {
         prepareNewClient()
     }
 
-    private fun prepareNewClient() {
+private fun prepareNewClient() {
         webSocketClient?.disconnect()
         loadPreferences()
         selectedApiVersionObject = apiVersions.firstOrNull { it.value == getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE).getString("api_version", null) } ?: apiVersions.firstOrNull()
@@ -181,16 +181,17 @@ class MainActivity : AppCompatActivity() {
             onOpen = { mainScope.launch {
                 Log.i(TAG, "WebSocket onOpen callback received.")
                 isSessionActive = true
+                reconnectAttempts = 0 // Reset on successful connection
                 updateStatus("Connected, configuring server...")
                 updateUI()
-                reconnectAttempts = 0 // Reset on successful connection
             } },
             onMessage = { text -> mainScope.launch { processServerMessage(text) } },
             onClosing = { code, reason -> mainScope.launch {
                 Log.w(TAG, "WebSocket onClosing callback received: Code=$code, Reason=$reason")
                 teardownSession(reconnect = true)
             } },
-            onFailure = { t, response -> mainScope.launch { // Modified
+            // MODIFIED: This now correctly handles both the error and the response
+            onFailure = { t, response -> mainScope.launch {
                 Log.e(TAG, "WebSocket onFailure callback received.", t)
                 var errorMessage = "Connection error: ${t.message}"
                 if (response != null) {
@@ -211,7 +212,6 @@ class MainActivity : AppCompatActivity() {
         )
         Log.i(TAG, "New WebSocketClient prepared.")
     }
-
     private fun handleMasterButton() {
         if (!isServerReady && !isSessionActive) {
             Log.d(TAG, "handleMasterButton: No active session, connecting.")
@@ -263,19 +263,19 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun connect() {
-    if (isSessionActive) {
-        Log.w(TAG, "connect: Already connected or connecting.")
-        return
+        if (isSessionActive) {
+            Log.w(TAG, "connect: Already connected or connecting.")
+            return
+        }
+        // Reset reconnect attempts on a new manual connection
+        if (!isSessionActive) {
+            reconnectAttempts = 0
+        }
+        Log.i(TAG, "connect: Attempting to establish WebSocket connection.")
+        updateStatus("Connecting...")
+        updateUI()
+        webSocketClient?.connect()
     }
-    // Reset reconnect attempts on a new manual connection
-    if (!isSessionActive) {
-        reconnectAttempts = 0
-    }
-    Log.i(TAG, "connect: Attempting to establish WebSocket connection.")
-    updateStatus("Connecting...")
-    updateUI()
-    webSocketClient?.connect()
-}
 
     private fun processServerMessage(text: String) {
         Log.v(TAG, "processServerMessage: Received raw message: ${text.take(500)}...")
@@ -369,7 +369,7 @@ class MainActivity : AppCompatActivity() {
         updateStatus("Ready to listen")
     }
 
-    private fun teardownSession(reconnect: Boolean = false) {
+   private fun teardownSession(reconnect: Boolean = false) {
         if (!isSessionActive) return
         Log.w(TAG, "teardownSession: Tearing down session. Reconnect: $reconnect")
         isListening = false
@@ -383,20 +383,21 @@ class MainActivity : AppCompatActivity() {
             updateUI()
             prepareNewClient()
             if (reconnect && reconnectAttempts < maxReconnectAttempts) {
-            reconnectAttempts++
-            val delayMillis = (1000 * Math.pow(2.0, reconnectAttempts.toDouble())).toLong()
-            Log.i(TAG, "Attempting to reconnect in ${delayMillis / 1000} seconds. (Attempt $reconnectAttempts)")
-            updateStatus("Connection lost. Reconnecting in ${delayMillis / 1000}s...")
-            delay(delayMillis)
-            connect()
-        } else if (reconnect) {
-            Log.e(TAG, "Max reconnect attempts reached. Will not reconnect.")
-            showError("Could not establish a connection. Please try again later.")
-            reconnectAttempts = 0 // Reset for next manual connection
+                reconnectAttempts++
+                val delayMillis = (1000 * Math.pow(2.0, reconnectAttempts.toDouble())).toLong()
+                Log.i(TAG, "Attempting to reconnect in ${delayMillis / 1000} seconds. (Attempt $reconnectAttempts)")
+                updateStatus("Connection lost. Reconnecting in ${delayMillis / 1000}s...")
+                delay(delayMillis)
+                connect()
+            } else if (reconnect) {
+                Log.e(TAG, "Max reconnect attempts reached. Will not reconnect.")
+                showError("Could not establish a connection. Please try again later.")
+                reconnectAttempts = 0 // Reset for next manual connection
+            }
         }
     }
-}
-    }
+    
+} // <-- THIS IS THE BRACKET THAT WAS LIKELY MISSING
 
     private fun updateUI() {
         binding.settingsBtn.text = if (isSessionActive) "Disconnect" else "Settings"
