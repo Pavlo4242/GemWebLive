@@ -88,12 +88,15 @@ class MainActivity : AppCompatActivity() {
         val parsedList = mutableListOf<ApiVersion>()
 
         for (itemString in rawApiVersions) {
+            // Corrected parsing: Assuming items can be "DisplayName|Value" or just "Value"
             val parts = itemString.split("|", limit = 2)
 
             if (parts.size == 2) {
                 parsedList.add(ApiVersion(parts[0].trim(), parts[1].trim()))
             } else {
-                Log.e(TAG, "Malformed API version item in resources: '$itemString'. Expected 'DisplayName|Value' format.")
+                // If no delimiter, use the entire string for both display and value
+                // Changed from Error to Warning as it's handled gracefully
+                Log.w(TAG, "API version item in resources: '$itemString' does not contain '|'. Using as DisplayName|Value.")
                 parsedList.add(ApiVersion(itemString.trim(), itemString.trim()))
             }
         }
