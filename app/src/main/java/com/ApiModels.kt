@@ -3,40 +3,22 @@ package com.gemweblive
 
 // Data class for API Versions (e.g., "v1alpha (Preview)" and "v1alpha")
 data class ApiVersion(
-    val displayName: String,
-    val value: String
+    val displayName: String, // The string to display in UI (e.g., "v1alpha (Preview)")
+    val value: String        // The actual API version string (e.g., "v1alpha")
 ) {
-    override fun toString(): String = displayName
+    // This override tells ArrayAdapter how to display this object in a Spinner
+    override fun toString(): String {
+        return displayName
+    }
 }
 
 // Data class for API Keys (e.g., "Language1a" and "AIzaSyAIrTcT8shPcho-TFRI2tFJdCjl6_FAbO8")
 data class ApiKeyInfo(
-    val displayName: String,
-    val value: String
+    val displayName: String, // The string to display in UI (e.g., "Language1a")
+    val value: String        // The actual API key string (e.g., "AIzaSyAIrTcT8shPcho-TFRI2tFJdCjl6_FAbO8")
 ) {
-    override fun toString(): String = displayName
-}
-
-enum class InputType { AUDIO, TEXT }
-enum class OutputType { AUDIO, TEXT, AUDIO_AND_TEXT } // AUDIO_AND_TEXT for models that return both streams
-
-// --- Data classes for specific configuration blocks ---
-data class SafetySetting(val category: String, val threshold: String)
-data class SpeechConfig(val languageCode: String, val voiceName: String)
-
-// --- The new, more powerful ModelInfo ---
-data class ModelInfo(
-    val modelName: String,
-    val displayName: String,
-    val inputType: InputType,
-    val outputType: OutputType,
-
-    // --- Optional configuration "blueprints" ---
-    // A model will have these set if it supports them.
-    val supportsSystemInstruction: Boolean = true,
-    val supportedSafetySettings: List<SafetySetting>? = null,
-    val defaultSpeechConfig: SpeechConfig? = null,
-    val supportsContextWindowCompression: Boolean = false
-) {
-    override fun toString(): String = displayName
+    // This override tells ArrayAdapter how to display this object in a Spinner
+    override fun toString(): String {
+        return displayName
+    }
 }
