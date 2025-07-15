@@ -237,16 +237,15 @@ class MainActivity : AppCompatActivity() {
             toggleListening()
         }
     } else {
+            startAudioTrnscpt()
         // --- Transcribe-Then-Send Mode ---
         // 1. Launch Android's on-device SpeechRecognizer intent.
         // 2. You will get the result back in onActivityResult.
         // 3. In onActivityResult, place the transcribed text into an EditText.
         // Note: The actual sending will be handled by a *different* "Send" button.
-        startOnDeviceSpeechToText() // This is a new function you would create.
+        
     }
 }
-
-
     private fun handleSettingsDisconnectButton() {
         if (isSessionActive) {
             teardownSession()
@@ -254,13 +253,6 @@ class MainActivity : AppCompatActivity() {
             showSettingsDialog()
         }
     }
-
-private fun startOnDeviceSpeechToText() {
-    if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this,arrayOf(android.Manifest.permission.RECORD_AUDIO),
-            1
-            )
-        }            
 
     
     private fun showSettingsDialog() {
@@ -356,6 +348,7 @@ private fun startOnDeviceSpeechToText() {
             isListening = false
             return
         }
+        if 
         audioHandler.startRecording()
         updateStatus("Listening...")
     }
