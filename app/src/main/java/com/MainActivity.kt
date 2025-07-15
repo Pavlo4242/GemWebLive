@@ -1,4 +1,4 @@
-// app/src/main/java/com/MainActivity.kt
+// app/src/main/java/com/gemweblive/MainActivity.kt
 package com.gemweblive
 
 import android.Manifest
@@ -17,18 +17,24 @@ import com.gemweblive.databinding.ActivityMainBinding
 import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
 import kotlinx.coroutines.*
+import java.lang.StringBuilder
 
-// --- Data classes for parsing server responses with Gson ---
+// --- Updated Data classes for parsing all server responses with Gson ---
 data class ServerResponse(
     @SerializedName("serverContent") val serverContent: ServerContent?,
     @SerializedName("inputTranscription") val inputTranscription: Transcription?,
     @SerializedName("outputTranscription") val outputTranscription: Transcription?,
-    @SerializedName("setupComplete") val setupComplete: SetupComplete?
+    @SerializedName("setupComplete") val setupComplete: SetupComplete?,
+    @SerializedName("sessionResumptionUpdate") val sessionResumptionUpdate: SessionResumptionUpdate?,
+    @SerializedName("goAway") val goAway: GoAway?
 )
 
+// Add a separate class for the nested input/output transcription in serverContent
 data class ServerContent(
     @SerializedName("parts") val parts: List<Part>?,
-    @SerializedName("modelTurn") val modelTurn: ModelTurn?
+    @SerializedName("modelTurn") val modelTurn: ModelTurn?,
+    @SerializedName("inputTranscription") val inputTranscription: Transcription?,
+    @SerializedName("outputTranscription") val outputTranscription: Transcription?
 )
 
 data class ModelTurn(
@@ -50,8 +56,17 @@ data class Transcription(
 )
 
 data class SetupComplete(
-    // This can be an empty object, so no fields are needed
     val dummy: String? = null
+)
+
+// --- NEW: Data classes for Session Management ---
+data class SessionResumptionUpdate(
+    @SerializedName("newHandle") val newHandle: String?,
+    @SerializedName("resumable") val resumable: Boolean?
+)
+
+data class GoAway(
+    @SerializedName("timeLeft") val timeLeft: String? // e.g., "10s"
 )
 
 
@@ -65,7 +80,10 @@ class MainActivity : AppCompatActivity() {
     private val mainScope = CoroutineScope(Dispatchers.Main)
     private val gson = Gson()
 
-    // State flags
+    // --- NEW: State for session handle and transcript buffering ---
+    private var sessionHandle: String? = null
+    private val outputTranscriptBuffer = StringBuilder()
+
     @Volatile private var isListening = false
     @Volatile private var isSessionActive = false
     @Volatile private var isServerReady = false
@@ -99,15 +117,14 @@ class MainActivity : AppCompatActivity() {
 
         val prefs = getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE)
         selectedModel = prefs.getString("selected_model", models[0]) ?: models[0]
+        sessionHandle = prefs.getString("session_handle", null) // Load previous handle
 
         audioPlayer = AudioPlayer()
 
         requestPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted: Boolean ->
             if (isGranted) {
-                Log.d(TAG, "RECORD_AUDIO permission granted.")
                 initializeComponentsDependentOnAudio()
             } else {
-                Log.w(TAG, "RECORD_AUDIO permission denied.")
                 showError("Microphone permission is required.")
             }
         }
@@ -147,6 +164,7 @@ class MainActivity : AppCompatActivity() {
         selectedApiKeyInfo = parsedList.firstOrNull { it.value == currentApiKeyValue } ?: parsedList.firstOrNull()
     }
 
+
     private fun setupUI() {
         translationAdapter = TranslationAdapter()
         binding.transcriptLog.apply {
@@ -162,9 +180,7 @@ class MainActivity : AppCompatActivity() {
     private fun initializeComponentsDependentOnAudio() {
         if (!::audioHandler.isInitialized) {
             audioHandler = AudioHandler(this) { audioData ->
-                if (webSocketClient?.isReady() == true) {
-                    webSocketClient?.sendAudio(audioData)
-                }
+                webSocketClient?.sendAudio(audioData)
             }
         }
         prepareNewClient()
@@ -184,32 +200,23 @@ class MainActivity : AppCompatActivity() {
             vadSilenceMs = getVadSensitivity(),
             apiVersion = selectedApiVersionObject?.value ?: "v1alpha",
             apiKey = selectedApiKeyInfo?.value ?: "",
-            onOpen = {
-                mainScope.launch {
-                    isSessionActive = true
-                    updateStatus("Connected, awaiting server...")
-                    updateUI()
-                }
-            },
-            onMessage = { text ->
-                mainScope.launch { processServerMessage(text) }
-            },
-            onClosing = { _, _ ->
-                mainScope.launch { teardownSession() }
-            },
-            onFailure = { t ->
-                mainScope.launch {
-                    showError("Connection error: ${t.message}")
-                    teardownSession()
-                }
-            },
-            onSetupComplete = {
-                mainScope.launch {
-                    isServerReady = true
-                    updateStatus("Ready to listen")
-                    updateUI()
-                }
-            }
+            sessionHandle = sessionHandle, // Pass the handle to the client
+            onOpen = { mainScope.launch {
+                isSessionActive = true
+                updateStatus("Connected, awaiting server...")
+                updateUI()
+            }},
+            onMessage = { text -> mainScope.launch { processServerMessage(text) } },
+            onClosing = { _, _ -> mainScope.launch { teardownSession() } },
+            onFailure = { t -> mainScope.launch {
+                showError("Connection error: ${t.message}")
+                teardownSession()
+            }},
+            onSetupComplete = { mainScope.launch {
+                isServerReady = true
+                updateStatus("Ready to listen")
+                updateUI()
+            }}
         )
     }
 
@@ -253,6 +260,7 @@ class MainActivity : AppCompatActivity() {
         dialog.show()
     }
 
+
     private fun getVadSensitivity(): Int {
         return getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE).getInt("vad_sensitivity_ms", 800)
     }
@@ -268,34 +276,48 @@ class MainActivity : AppCompatActivity() {
         try {
             val response = gson.fromJson(text, ServerResponse::class.java)
 
-            // Handle user's transcribed speech
-            response.inputTranscription?.text?.let {
-                if (it.isNotBlank()) {
-                    translationAdapter.addOrUpdateTranslation(it, true)
+            // --- NEW: Handle SessionResumptionUpdate ---
+            response.sessionResumptionUpdate?.let { update ->
+                if (update.resumable == true && update.newHandle != null) {
+                    sessionHandle = update.newHandle
+                    // Persist the new handle for future sessions
+                    getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE).edit().putString("session_handle", sessionHandle).apply()
+                    Log.i(TAG, "Session handle updated: ${sessionHandle?.take(10)}...")
                 }
             }
 
-            // Handle model's translated text
-            response.outputTranscription?.text?.let {
-                if (it.isNotBlank()) {
-                    translationAdapter.addOrUpdateTranslation(it, false)
-                }
+            // --- NEW: Handle GoAway message ---
+            response.goAway?.timeLeft?.let { timeLeft ->
+                showError("Connection closing in $timeLeft. Will reconnect.")
+            }
+
+            // --- MODIFIED: Transcript Buffering Logic ---
+
+            // 1. Handle server's translated text (output)
+            val outputText = response.outputTranscription?.text ?: response.serverContent?.outputTranscription?.text
+            if (outputText != null) {
+                outputTranscriptBuffer.append(outputText)
             }
             
-            // Handle model's translated audio from modelTurn
+            // 2. Handle user's transcribed speech (input)
+            val inputText = response.inputTranscription?.text ?: response.serverContent?.inputTranscription?.text
+            if (inputText != null && inputText.isNotBlank()) {
+                // First, flush the buffered output from the server's previous turn
+                if (outputTranscriptBuffer.isNotEmpty()) {
+                    translationAdapter.addOrUpdateTranslation(outputTranscriptBuffer.toString().trim(), false)
+                    outputTranscriptBuffer.clear() // Clear the buffer
+                }
+                // Then, display the user's new input
+                translationAdapter.addOrUpdateTranslation(inputText.trim(), true)
+            }
+
+
+            // 3. Handle audio playback (remains the same)
             response.serverContent?.modelTurn?.parts?.forEach { part ->
                 part.inlineData?.data?.let { audioData ->
                     audioPlayer.playAudio(audioData)
                 }
             }
-
-            // Handle model's translated audio from serverContent (older format)
-            response.serverContent?.parts?.forEach { part ->
-                 part.inlineData?.data?.let { audioData ->
-                    audioPlayer.playAudio(audioData)
-                }
-            }
-
 
         } catch (e: Exception) {
             Log.e(TAG, "Error processing server message: $text", e)
@@ -323,8 +345,14 @@ class MainActivity : AppCompatActivity() {
         if (::audioHandler.isInitialized) {
             audioHandler.stopRecording()
         }
+        // When user stops talking, flush any remaining output from the buffer
+        if (outputTranscriptBuffer.isNotEmpty()) {
+             translationAdapter.addOrUpdateTranslation(outputTranscriptBuffer.toString().trim(), false)
+             outputTranscriptBuffer.clear()
+        }
         updateStatus("Ready to listen")
     }
+
 
     private fun teardownSession(reconnect: Boolean = false) {
         if (!isSessionActive) return
@@ -370,9 +398,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showError(message: String) {
-        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
-        updateStatus(message)
+        Toast.makeText(this, message, Toast.LENGTH_LONG).show() // Show for longer
+        updateStatus("Alert: $message")
     }
+
 
     private fun checkPermissions() {
         when {
