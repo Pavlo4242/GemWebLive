@@ -1,30 +1,17 @@
 // app/src/main/java/com/gemweblive/ApiModels.kt
 package com.gemweblive
 
-// Data class for API Versions (e.g., "v1alpha (Preview)" and "v1alpha")
-data class ApiVersion(
-    val displayName: String,
-    val value: String
-) {
-    override fun toString(): String = displayName
-}
-
-// Data class for API Keys (e.g., "Language1a" and "AIzaSyAIrTcT8shPcho-TFRI2tFJdCjl6_FAbO8")
-data class ApiKeyInfo(
-    val displayName: String,
-    val value: String
-) {
-    override fun toString(): String = displayName
-}
-
+// Enums to define capabilities clearly
 enum class InputType { AUDIO, TEXT }
-enum class OutputType { AUDIO, TEXT, AUDIO_AND_TEXT } // AUDIO_AND_TEXT for models that return both streams
+enum class OutputType { AUDIO, TEXT, AUDIO_AND_TEXT }
 
-// --- Data classes for specific configuration blocks ---
+// Data class for a single safety setting
 data class SafetySetting(val category: String, val threshold: String)
-data class SpeechConfig(val languageCode: String, val voiceName: String)
 
-// --- The new, more powerful ModelInfo ---
+/**
+ * The ModelInfo class is the single source of truth for a model's capabilities.
+ * It provides the "blueprint" that the ConfigBuilder uses to construct valid requests.
+ */
 data class ModelInfo(
     val modelName: String,
     val displayName: String,
@@ -32,24 +19,21 @@ data class ModelInfo(
     val outputType: OutputType,
 
     // --- Capability Flags ---
+    val isLiveModel: Boolean,
     val supportsSystemInstruction: Boolean = false,
-    val supportsThinkingConfig: Boolean = false, // Universal
-    val supportsSafetySettings: Boolean = true,  // Universal as per user request
-
-    // --- Live API / WebSocket Specific Flags ---
-    val isLiveModel: Boolean, // A flag to distinguish WebSocket-capable models
+    val supportsThinkingConfig: Boolean = false,
+    val supportsSafetySettings: Boolean = true, // Universal as requested
     val supportsInputAudioTranscription: Boolean = false,
     val supportsOutputAudioTranscription: Boolean = false,
     val supportsContextWindowCompression: Boolean = false,
-
-    // --- Native Model Specific Flags ---
     val supportsAffectiveDialog: Boolean = false,
     val supportsProactivity: Boolean = false
 ) {
+    // This override is crucial for displaying the name in the Spinner
     override fun toString(): String = displayName
 }
 
-// Other data classes (ApiVersion, ApiKeyInfo) remain the same...
+// These are now defined only once.
 data class ApiVersion(val displayName: String, val value: String) {
     override fun toString(): String = displayName
 }
