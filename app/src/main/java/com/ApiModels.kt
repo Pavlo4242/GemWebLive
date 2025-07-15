@@ -10,33 +10,31 @@ data class SafetySetting(val category: String, val threshold: String)
 
 /**
  * The ModelInfo class is the single source of truth for a model's capabilities.
- * It provides the "blueprint" that the ConfigBuilder uses to construct valid requests.
  */
 data class ModelInfo(
     val modelName: String,
     val displayName: String,
     val inputType: InputType,
     val outputType: OutputType,
-
-    // --- Capability Flags ---
     val isLiveModel: Boolean,
     val supportsSystemInstruction: Boolean = false,
     val supportsThinkingConfig: Boolean = false,
-    val supportsSafetySettings: Boolean = true, // Universal as requested
+    val supportsSafetySettings: Boolean = true,
     val supportsInputAudioTranscription: Boolean = false,
     val supportsOutputAudioTranscription: Boolean = false,
     val supportsContextWindowCompression: Boolean = false,
     val supportsAffectiveDialog: Boolean = false,
     val supportsProactivity: Boolean = false
 ) {
-    // This override is crucial for displaying the name in the Spinner
     override fun toString(): String = displayName
 }
 
-// These are now defined only once.
+// Data class for API Versions
 data class ApiVersion(val displayName: String, val value: String) {
     override fun toString(): String = displayName
 }
+
+// Data class for API Keys
 data class ApiKeyInfo(val displayName: String, val value: String) {
     override fun toString(): String = displayName
 }
