@@ -32,7 +32,9 @@
         android:textAlignment="center"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/configDisplay" /> <androidx.recyclerview.widget.RecyclerView
+        app:layout_constraintTop_toBottomOf="@+id/configDisplay" /> 
+    
+    <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/transcriptLog"
         android:layout_width="0dp"
         android:layout_height="0dp"
@@ -99,7 +101,8 @@
     android:layout_width="0dp"
     android:layout_height="wrap_content"
     android:hint="Transcribed text will appear here..."
-    android:visibility="gone" app:layout_constraintStart_toStartOf="parent"
+    android:visibility="gone" 
+    app:layout_constraintStart_toStartOf="parent"
     app:layout_constraintEnd_toStartOf="@+id/sendTextBtn"
     app:layout_constraintBottom_toTopOf="@+id/micBtn" />
 
@@ -108,7 +111,8 @@
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
     android:text="Send"
-    android:visibility="gone" app:layout_constraintEnd_toEndOf="parent"
+    android:visibility="gone" 
+    app:layout_constraintEnd_toEndOf="parent"
     app:layoutconstraintTop_toTopOf="@id/textInput"
     app:layout_constraintBottom_toBottomOf="@id/textInput" />
     
