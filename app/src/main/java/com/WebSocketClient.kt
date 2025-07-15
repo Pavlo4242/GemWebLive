@@ -1,4 +1,4 @@
-// app/src/main/java/com/gemweblive/WebSocketClient.kt
+//repair added logging//
 package com.gemweblive
 
 import android.content.Context
@@ -35,22 +35,25 @@ class WebSocketClient(
     @Volatile private var isConnected = false
     private val scope = CoroutineScope(Executors.newSingleThreadExecutor().asCoroutineDispatcher())
     private val gson = Gson()
+
+    private var logFileWriter: PrintWriter? = null
+    private lateinit var logFile: File
+
+    // The HttpLoggingInterceptor is now configured to use our custom file logger
     private val client = OkHttpClient.Builder()
         .readTimeout(0, TimeUnit.MILLISECONDS)
         .pingInterval(30, TimeUnit.SECONDS)
         .addInterceptor(HttpLoggingInterceptor(object : HttpLoggingInterceptor.Logger {
             override fun log(message: String) {
-                Log.d(TAG, message)
-                logFileWriter?.println(message)
+                // Log to both Logcat and the file
+                Log.d(TAG, "OkHttp: $message")
+                logFileWriter?.println("OkHttp: $message")
             }
         }).apply {
             level = HttpLoggingInterceptor.Level.BODY
         })
         .build()
 
-    private var logFileWriter: PrintWriter? = null
-    private lateinit var logFile: File
-    
     companion object {
         private const val HOST = "generativelanguage.googleapis.com"
         private const val TAG = "WebSocketClient"
@@ -174,32 +177,45 @@ class WebSocketClient(
             setupConfig["sessionResumption"] = mapOf("handle" to it)
         }
         val fullConfig = mapOf("setup" to setupConfig)
-        webSocket?.send(gson.toJson(fullConfig))
+        val configJson = gson.toJson(fullConfig)
+        Log.d(TAG, "Sending config message: ${configJson.take(500)}...")
+        logFileWriter?.println("OUTGOING CONFIG: $configJson")
+        webSocket?.send(configJson)
     }
-    
+
     fun connect() {
         Log.d(TAG, "Connect method in WebSocketClient called.")
-        if (isConnected) return
-        Log.i(TAG, "Attempting to connect...")
+        if (isConnected) {
+            Log.w(TAG, "connect() called but already connected.")
+            return
+        }
+
+        // Initialize the log file writer
         try {
             val logDir = File(context.getExternalFilesDir(null), "websocket_logs")
             if (!logDir.exists()) logDir.mkdirs()
             logFile = File(logDir, "session_log_${System.currentTimeMillis()}.txt")
             logFileWriter = PrintWriter(FileWriter(logFile, true), true)
             logFileWriter?.println("--- New WebSocket Session Log: ${java.util.Date()} ---")
+            Log.i(TAG, "Log file initialized at: ${logFile.absolutePath}")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to initialize log file", e)
             onFailure(e)
             return
         }
-        val request = Request.Builder()
-            .url("wss://$HOST/ws/google.ai.generativelanguage.$apiVersion.GenerativeService.BidiGenerateContent?key=$apiKey")
-            .build()
+
+        Log.i(TAG, "Attempting to connect...")
+        val requestUrl = "wss://$HOST/ws/google.ai.generativelanguage.$apiVersion.GenerativeService.BidiGenerateContent?key=$apiKey"
+        Log.d(TAG, "Connection URL: $requestUrl")
+        logFileWriter?.println("CONNECTION_URL: $requestUrl")
+
+        val request = Request.Builder().url(requestUrl).build()
+
         webSocket = client.newWebSocket(request, object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
-                scope.launch { 
+                scope.launch {
                     Log.i(TAG, "WebSocket connection opened. Response: ${response.code}")
-                    logFileWriter?.println("WEB_SOCKET_OPENED (HTTP Status: ${response.code})")
+                    logFileWriter?.println("--> WEB_SOCKET_OPENED (HTTP Status: ${response.code})")
                     logFileWriter?.println("--- HTTP Response Headers ---")
                     response.headers.forEach { header ->
                         logFileWriter?.println("${header.first}: ${header.second}")
@@ -210,31 +226,39 @@ class WebSocketClient(
                     onOpen() // Callback to MainActivity
                 }
             }
-                    isConnected = true; onOpen(); sendConfigMessage() }
-            }
+
             override fun onMessage(webSocket: WebSocket, text: String) {
                 scope.launch {
                     Log.d(TAG, "INCOMING TEXT FRAME: ${text.take(500)}...")
-                    logFileWriter?.println("INCOMING TEXT FRAME: $text")
-                    processIncomingMessage(text) // Use the common processing function
+                    logFileWriter?.println("--> INCOMING (TEXT): $text")
+                    processIncomingMessage(text)
                 }
             }
+
             override fun onMessage(webSocket: WebSocket, bytes: ByteString) {
-                scope.launch { processIncomingMessage(bytes.utf8()) }
+                scope.launch {
+                    val text = bytes.utf8()
+                    Log.d(TAG, "INCOMING BYTES FRAME (decoded): ${text.take(500)}...")
+                    logFileWriter?.println("--> INCOMING (BYTES): $text")
+                    processIncomingMessage(text)
+                }
             }
+
             override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
                 scope.launch {
                     Log.w(TAG, "WebSocket closing: $code - $reason")
-                    logFileWriter?.println("WEB_SOCKET_CLOSING: Code=$code, Reason=$reason")
+                    logFileWriter?.println("--> WEB_SOCKET_CLOSING: Code=$code, Reason=$reason")
                     cleanup()
                     this@WebSocketClient.onClosing(code, reason)
                 }
             }
+
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
                 scope.launch {
                     Log.e(TAG, "WebSocket failure", t)
                     val responseBodyString = response?.body?.string()?.take(500) ?: "N/A"
-                    logFileWriter?.println("WEB_SOCKET_FAILURE: ${t.message}, ResponseCode=${response?.code}, ResponseBody=${responseBodyString}")
+                    logFileWriter?.println("--> WEB_SOCKET_FAILURE: ${t.message}, ResponseCode=${response?.code}, ResponseBody=${responseBodyString}")
+                    logFileWriter?.println("--> StackTrace: ${t.stackTraceToString()}")
                     cleanup()
                     this@WebSocketClient.onFailure(t)
                 }
@@ -243,22 +267,29 @@ class WebSocketClient(
     }
 
     private fun processIncomingMessage(messageText: String) {
-        if (messageText.contains("\"setupComplete\"")) {
-            if (!isSetupComplete) {
-                isSetupComplete = true
-                onSetupComplete()
+        try {
+            // Check for setupComplete specifically, as it's a key state change
+            if (messageText.contains("\"setupComplete\"")) {
+                if (!isSetupComplete) {
+                    Log.i(TAG, "Server setup is complete.")
+                    logFileWriter?.println("--> SERVER_SETUP_COMPLETE")
+                    isSetupComplete = true
+                    onSetupComplete() // Notify MainActivity
+                }
             }
-        } else {
+            // Pass all messages to MainActivity for general processing
             onMessage(messageText)
-        }
-    }catch (e: Exception) {
+        } catch (e: Exception) {
             Log.e(TAG, "Error parsing incoming message frame: '${messageText.take(100)}'", e)
-            logFileWriter?.println("ERROR PARSING INCOMING MESSAGE FRAME: ${e.message}")
+            logFileWriter?.println("!! ERROR PARSING INCOMING MESSAGE: ${e.message}")
+        }
     }
-}
-    
+
     fun sendAudio(audioData: ByteArray) {
-        if (!isReady()) return
+        if (!isReady()) {
+            Log.w(TAG, "sendAudio called but not ready. isConnected=$isConnected, isSetupComplete=$isSetupComplete")
+            return
+        }
         scope.launch {
             try {
                 val base64Audio = Base64.encodeToString(audioData, Base64.NO_WRAP)
@@ -271,32 +302,37 @@ class WebSocketClient(
                     )
                 )
                 val messageToSend = gson.toJson(realtimeInput)
-                Log.d(TAG, "OUTGOING AUDIO FRAME (length: ${messageToSend.length}): ${messageToSend.take(500)}...")
-                logFileWriter?.println("OUTGOING AUDIO FRAME: $messageToSend")
+                Log.d(TAG, "OUTGOING AUDIO FRAME (length: ${audioData.size})")
+                logFileWriter?.println("<-- OUTGOING (AUDIO): length=${audioData.size}, base64_length=${base64Audio.length}")
                 webSocket?.send(messageToSend)
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to send audio", e)
+                logFileWriter?.println("!! ERROR SENDING AUDIO: ${e.message}")
             }
         }
     }
 
     fun disconnect() {
+        Log.i(TAG, "Disconnect called.")
         scope.launch {
             cleanup()
         }
     }
 
     private fun cleanup() {
+        Log.w(TAG, "cleanup: Cleaning up WebSocket resources.")
         if (isConnected) {
-            webSocket?.close(1000, "Normal closure")
+            webSocket?.close(1000, "Normal closure initiated by client")
             webSocket = null
         }
-        logFileWriter?.println("--- Session Log End ---")
+        logFileWriter?.println("--- Session Log End: ${java.util.Date()} ---")
+        logFileWriter?.flush()
         logFileWriter?.close()
-        logFileWriter = null       
+        logFileWriter = null
         isConnected = false
         isSetupComplete = false
+        Log.i(TAG, "Cleanup complete.")
     }
 
     fun isReady(): Boolean = isConnected && isSetupComplete
- }
+}
