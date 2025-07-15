@@ -79,10 +79,10 @@ class MainActivity : AppCompatActivity() {
             ),
             ModelInfo(
                 modelName = "gemini-2.0-flash-live-001",
-                displayName = "Transcribe (Text Only)",
-                inputType = InputType.TEXT,
-                outputType = OutputType.TEXT,
-                isLiveModel = false, // This model would use a REST client
+                displayName = "Flash 2.0",
+                inputType = InputType.AUDIO,
+                outputType = OutputType.AUDIO_AND_TEXT,
+                isLiveModel = true, // This model would use a REST client
                 supportsSystemInstruction = true,
                 supportsSafetySettings = true,
                 supportsThinkingConfig = true
@@ -90,9 +90,20 @@ class MainActivity : AppCompatActivity() {
             ModelInfo(
                 modelName = "gemini-2.5-flash-live-preview",
                 displayName = "Transcribe (Text Only)",
+                inputType = InputType.AUDIO,
+                outputType = OutputType.AUDIO_AND_TEXT,
+                isLiveModel = true, // This model would use a REST client
+                supportsSystemInstruction = true,
+                supportsSafetySettings = true,
+                supportsThinkingConfig = true
+            ),
+            
+            ModelInfo(
+                modelName = "gemini-2.0-latest",
+                displayName = "Transcribe (Text Only)",
                 inputType = InputType.TEXT,
                 outputType = OutputType.TEXT,
-                isLiveModel = false, // This model would use a REST client
+                isLiveModel = true, // This model would use a REST client
                 supportsSystemInstruction = true,
                 supportsSafetySettings = true,
                 supportsThinkingConfig = true
