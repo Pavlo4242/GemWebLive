@@ -1,4 +1,3 @@
-// app/src/main/java/com/gemweblive/MainActivity.kt
 package com.gemweblive
 
 import android.Manifest
@@ -13,13 +12,12 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.gemweblive.databinding.ActivityMainBinding
 import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
 import kotlinx.coroutines.*
 import java.lang.StringBuilder
 
-// --- Data classes for parsing all server responses ---
+// --- Data classes for parsing server responses ---
 data class ServerResponse(
     @SerializedName("serverContent") val serverContent: ServerContent?,
     @SerializedName("inputTranscription") val inputTranscription: Transcription?,
@@ -59,8 +57,8 @@ class MainActivity : AppCompatActivity() {
     @Volatile private var isSessionActive = false
     @Volatile private var isServerReady = false
 
-    // --- Configuration ---
-    private var models = listOf("gemini-1.5-flash-preview", "gemini-1.5-pro-preview")
+    // --- Configuration (Simple Version) ---
+    private val models = listOf("gemini-1.5-flash-preview", "gemini-1.5-pro-preview")
     private var selectedModel: String = models[0]
     private var apiVersions: List<ApiVersion> = emptyList()
     private var apiKeys: List<ApiKeyInfo> = emptyList()
@@ -69,13 +67,17 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var requestPermissionLauncher: ActivityResultLauncher<String>
 
+    companion object {
+        private const val TAG = "MainActivity"
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        loadApiVersionsFromResources(this)
-        loadApiKeysFromResources(this)
+        loadApiVersionsFromResources()
+        loadApiKeysFromResources()
         loadPreferences()
 
         audioPlayer = AudioPlayer()
@@ -90,13 +92,12 @@ class MainActivity : AppCompatActivity() {
 
     private fun loadPreferences() {
         val prefs = getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE)
-        val savedModelName = prefs.getString("selected_model", AVAILABLE_MODELS[0].modelName)
-        currentModelInfo = AVAILABLE_MODELS.find { it.modelName == savedModelName } ?: AVAILABLE_MODELS[0]
+        selectedModel = prefs.getString("selected_model", models[0]) ?: models[0]
         sessionHandle = prefs.getString("session_handle", null)
     }
 
-    private fun loadApiVersionsFromResources(context: Context) {
-        val rawApiVersions = context.resources.getStringArray(R.array.api_versions)
+    private fun loadApiVersionsFromResources() {
+        val rawApiVersions = resources.getStringArray(R.array.api_versions)
         val parsedList = mutableListOf<ApiVersion>()
         for (itemString in rawApiVersions) {
             val parts = itemString.split("|", limit = 2)
@@ -106,8 +107,8 @@ class MainActivity : AppCompatActivity() {
         selectedApiVersionObject = parsedList.firstOrNull { it.value == getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE).getString("api_version", null) } ?: parsedList.firstOrNull()
     }
 
-    private fun loadApiKeysFromResources(context: Context) {
-        val rawApiKeys = context.resources.getStringArray(R.array.api_keys)
+    private fun loadApiKeysFromResources() {
+        val rawApiKeys = resources.getStringArray(R.array.api_keys)
         val parsedList = mutableListOf<ApiKeyInfo>()
         for (itemString in rawApiKeys) {
             val parts = itemString.split(":", limit = 2)
@@ -140,10 +141,9 @@ class MainActivity : AppCompatActivity() {
 
     private fun prepareNewClient() {
         webSocketClient?.disconnect()
-        val prefs = getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE)
-        selectedModel = prefs.getString("selected_model", models[0]) ?: models[0]
-        selectedApiVersionObject = apiVersions.firstOrNull { it.value == prefs.getString("api_version", null) } ?: apiVersions.firstOrNull()
-        selectedApiKeyInfo = apiKeys.firstOrNull { it.value == prefs.getString("api_key", null) } ?: apiKeys.firstOrNull()
+        loadPreferences() // Reload preferences to get the latest settings
+        selectedApiVersionObject = apiVersions.firstOrNull { it.value == getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE).getString("api_version", null) } ?: apiVersions.firstOrNull()
+        selectedApiKeyInfo = apiKeys.firstOrNull { it.value == getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE).getString("api_key", null) } ?: apiKeys.firstOrNull()
 
         webSocketClient = WebSocketClient(
             context = applicationContext,
@@ -173,12 +173,13 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showSettingsDialog() {
+        // This now correctly passes the simple list of model names
         val dialog = SettingsDialog(this, getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE), models)
         dialog.setOnDismissListener {
             loadPreferences()
             updateDisplayInfo()
             if (isSessionActive) {
-                Toast.makeText(this, "Settings saved. Disconnect and reconnect to apply.", Toast.LENGTH_LONG).show()
+                Toast.makeText(this, "Settings saved. Please Disconnect and reconnect to apply.", Toast.LENGTH_LONG).show()
             }
         }
         dialog.show()
@@ -265,7 +266,7 @@ class MainActivity : AppCompatActivity() {
     private fun updateUI() {
         binding.settingsBtn.text = if (isSessionActive) "Disconnect" else "Settings"
         if (!isSessionActive) {
-            binding.micBtn.text = if(currentModelInfo.supportsAudioInput) "Connect" else "Transcribe"
+            binding.micBtn.text = "Connect"
             binding.micBtn.isEnabled = ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
             binding.debugConnectBtn.isEnabled = true
         } else {
@@ -298,9 +299,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateDisplayInfo() {
-        val currentApiVersionDisplayName = selectedApiVersionObject?.displayName ?: "N/A"
-        val currentApiKeyDisplayName = selectedApiKeyInfo?.displayName ?: "N/A"
-        binding.configDisplay.text = "Model: ${currentModelInfo.displayName} | Version: $currentApiVersionDisplayName | Key: $currentApiKeyDisplayName"
+        val prefs = getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE)
+        val currentApiVersion = apiVersions.firstOrNull { it.value == prefs.getString("api_version", null) } ?: apiVersions.firstOrNull()
+        val currentApiKey = apiKeys.firstOrNull { it.value == prefs.getString("api_key", null) } ?: apiKeys.firstOrNull()
+
+        binding.configDisplay.text = "Model: $selectedModel | Version: ${currentApiVersion?.displayName ?: "N/A"} | Key: ${currentApiKey?.displayName ?: "N/A"}"
     }
 
     override fun onDestroy() {
