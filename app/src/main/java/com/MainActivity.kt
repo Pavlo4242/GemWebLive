@@ -98,13 +98,37 @@ class MainActivity : AppCompatActivity() {
     private var apiKeys: List<ApiKeyInfo> = emptyList()
     private var selectedApiVersionObject: ApiVersion? = null
     private var selectedApiKeyInfo: ApiKeyInfo? = null
-    
-    //Text Input Functionality //
+
     private lateinit var currentModelInfo: ModelInfo
-    const ModelInfo:SupportsAudio
+
     companion object {
-        private const val TAG = "MainActivity"
+            private const val TAG = "MainActivity"
+
+            val AVAILABLE_MODELS = listOf(
+                    ModelInfo(
+                modelName = "gemini-live-2.5-flash-preview",
+                displayName = "Live (Audio In / Audio Out)",
+                supportsAudioInput = true,
+                supportsAudioOutput = true
+            ),
+            ModelInfo(
+                modelName = "gemini-2.0-text-latest", // Example model name
+                displayName = "Transcribe (Text In / Text Out)",
+                supportsAudioInput = false,
+                supportsAudioOutput = false
+            ),
+            ModelInfo(
+                modelName = "gemini-2.0-audio-text-latest", // Example model name
+                displayName = "Assistant (Audio In / Text Out)",
+                supportsAudioInput = true,
+                supportsAudioOutput = false
+            )
+            // Add other models and their capabilities here
+        )
     }
+    
+   
+       }
 
     private lateinit var requestPermissionLauncher: ActivityResultLauncher<String>
 
@@ -116,9 +140,12 @@ class MainActivity : AppCompatActivity() {
         loadApiVersionsFromResources(this)
         loadApiKeysFromResources(this)
 
-        val prefs = getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE)
-        selectedModel = prefs.getString("selected_model", models[0]) ?: models[0]
-        sessionHandle = prefs.getString("session_handle", null) // Load previous handle
+         val prefs = getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE)
+        // Get the saved model name, or default to the first model in our list
+        val savedModelName = prefs.getString("selected_model", AVAILABLE_MODELS[0].modelName)
+        
+        // Find the full ModelInfo object from our list and set it as the current one
+        currentModelInfo = AVAILABLE_MODELS.find { it.modelName == savedModelName } ?: AVAILABLE_MODELS[0]
 
         audioPlayer = AudioPlayer()
 
@@ -133,6 +160,7 @@ class MainActivity : AppCompatActivity() {
         checkPermissions()
         setupUI()
         updateDisplayInfo()
+         updateUiMode() 
     }
 
     private fun loadApiVersionsFromResources(context: Context) {
@@ -225,28 +253,51 @@ class MainActivity : AppCompatActivity() {
         connect()
     }
 
-    private fun handleMasterButton() {
-    if (currentModelInfo.supportsAudioInput) {
-        // --- Live Audio Mode ---
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+  if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             checkPermissions()
             return
-        if (!isSessionActive) {
-            connect()
-        } else {
-            toggleListening()
         }
-    } else {
-            audioHandler.startRecording()
-            updateStatus("Transcribing...")
-        // --- Transcribe-Then-Send Mode ---
-        // 1. Launch Android's on-device SpeechRecognizer intent.
-        // 2. You will get the result back in onActivityResult.
-        // 3. In onActivityResult, place the transcribed text into an EditText.
-        // Note: The actual sending will be handled by a *different* "Send" button.
-        
+
+        // The logic is now driven by the properties of currentModelInfo
+        if (currentModelInfo.supportsAudioInput) {
+            // Live Audio Mode
+            if (!isSessionActive) connect() else toggleListening()
+        } else {
+            // Transcribe-Then-Send Mode
+            startOnDeviceSpeechToText()
+        }
     }
-}
+
+    // --- NEW: A function to configure the UI based on the selected model ---
+    private fun updateUiMode() {
+        if (currentModelInfo.supportsAudioInput) {
+            // Live Mode: Hide the text input field and send button
+            binding.textInput.visibility = View.GONE
+            binding.sendTextBtn.visibility = View.GONE
+        } else {
+            // Transcribe Mode: Show the text input and send button
+            binding.textInput.visibility = View.VISIBLE
+            binding.sendTextBtn.visibility = View.VISIBLE
+        }
+    }
+    
+    // In your SettingsDialog dismiss listener, update the currentModelInfo
+    private fun showSettingsDialog() {
+        val dialog = SettingsDialog(this, getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE), AVAILABLE_MODELS)
+        dialog.setOnDismissListener {
+            val prefs = getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE)
+            val savedModelName = prefs.getString("selected_model", AVAILABLE_MODELS[0].modelName)
+            currentModelInfo = AVAILABLE_MODELS.find { it.modelName == savedModelName } ?: AVAILABLE_MODELS[0]
+            
+            updateDisplayInfo()
+            updateUiMode() // Re-configure the UI for the newly selected model
+
+            if (isSessionActive) {
+                Toast.makeText(this, "Settings saved. Disconnect and reconnect to apply.", Toast.LENGTH_LONG).show()
+            }
+        }
+        dialog.show()
+    }
     private fun handleSettingsDisconnectButton() {
         if (isSessionActive) {
             teardownSession()
