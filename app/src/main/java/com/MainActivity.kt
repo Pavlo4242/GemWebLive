@@ -16,7 +16,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.gemweblive.ApiModels.*
 import com.gemweblive.databinding.ActivityMainBinding
 import com.gemweblive.util.ConfigBuilder
 import com.google.gson.Gson
@@ -82,7 +81,7 @@ class MainActivity : AppCompatActivity() {
                 modelName = "gemini-1.5-pro-latest",
                 displayName = "Transcribe (Text Only)",
                 inputType = InputType.TEXT,
-                outputType = OutputType.TEXT_ONLY,
+                outputType = OutputType.TEXT,
                 isLiveModel = false, // This model would use a REST client
                 supportsSystemInstruction = true,
                 supportsSafetySettings = true,
@@ -188,8 +187,10 @@ class MainActivity : AppCompatActivity() {
 
         if (currentModelInfo.isLiveModel) {
             webSocketClient = WebSocketClient(
+                context = this,
                 modelInfo = currentModelInfo,
                 configBuilder = configBuilder,
+                vadSilenceMs = getVadSensitivity(),
                 apiVersion = selectedApiVersion?.value ?: "v1beta",
                 apiKey = selectedApiKey?.value ?: "",
                 sessionHandle = sessionHandle,
