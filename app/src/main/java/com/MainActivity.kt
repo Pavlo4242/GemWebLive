@@ -254,12 +254,12 @@ class MainActivity : AppCompatActivity() {
         Log.d(TAG, "handleDebugConnectButton: Debug Connect clicked. Forcing connection attempt.")
         // This button bypasses the isSessionActive check, directly attempts to connect.
         // It still respects microphone permission needed for actual streaming after connection.
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            Log.w(TAG, "handleDebugConnectButton: RECORD_AUDIO permission not granted. Requesting before connect.")
-            checkPermissions() // Request permission, connect will happen via initializeComponentsDependentOnAudio
-        } else {
-            connect() // If permission is already granted, connect directly
-        }
+       // if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+       //     Log.w(TAG, "handleDebugConnectButton: RECORD_AUDIO permission not granted. Requesting before connect.")
+       //     checkPermissions() // Request permission, connect will happen via initializeComponentsDependentOnAudio
+      //  } else {
+        connect() // If permission is already granted, connect directly
+      //  }
     }
 
 
