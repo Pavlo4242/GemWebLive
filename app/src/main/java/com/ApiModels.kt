@@ -17,21 +17,26 @@ data class ApiKeyInfo(
     override fun toString(): String = displayName
 }
 
-enum class OutputType {
-    AUDIO_ONLY,
-    TEXT_ONLY,
-    AUDIO_AND_TEXT, // For models that provide both simultaneously
-    USER_CHOICE     // For the special case model
-}
+enum class InputType { AUDIO, TEXT }
+enum class OutputType { AUDIO, TEXT, AUDIO_AND_TEXT } // AUDIO_AND_TEXT for models that return both streams
 
+// --- Data classes for specific configuration blocks ---
+data class SafetySetting(val category: String, val threshold: String)
+data class SpeechConfig(val languageCode: String, val voiceName: String)
+
+// --- The new, more powerful ModelInfo ---
 data class ModelInfo(
     val modelName: String,
     val displayName: String,
-    val supportsAudioInput: Boolean,
-    val outputType: OutputType // Use the new enum
-    val supportsSystemInstruction: Boolean
-    //val caching, live, etc //
+    val inputType: InputType,
+    val outputType: OutputType,
+
+    // --- Optional configuration "blueprints" ---
+    // A model will have these set if it supports them.
+    val supportsSystemInstruction: Boolean = true,
+    val supportedSafetySettings: List<SafetySetting>? = null,
+    val defaultSpeechConfig: SpeechConfig? = null,
+    val supportsContextWindowCompression: Boolean = false
 ) {
-    // This override tells the ArrayAdapter in the Settings dialog how to display this object.
     override fun toString(): String = displayName
 }
