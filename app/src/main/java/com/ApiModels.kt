@@ -29,6 +29,8 @@ data class ModelInfo(
     val displayName: String,
     val supportsAudioInput: Boolean,
     val outputType: OutputType // Use the new enum
+    val supportsSystemInstruction: Boolean
+    //val caching, live, etc //
 ) {
     // This override tells the ArrayAdapter in the Settings dialog how to display this object.
     override fun toString(): String = displayName
