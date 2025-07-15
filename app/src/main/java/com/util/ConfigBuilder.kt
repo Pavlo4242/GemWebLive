@@ -1,10 +1,8 @@
 // In a new file: util/ConfigBuilder.kt
 package com.gemweblive.util
 
-import com.gemweblive.ApiModels.ModelInfo
-import com.gemweblive.ApiModels.InputType
-import com.gemweblive.ApiModels.OutputType
-import com.gemweblive.ApiModels.SafetySetting
+import com.gemweblive.ModelInfo
+import com.gemweblive.SafetySetting
 import com.google.gson.Gson
 
 class ConfigBuilder(private val gson: Gson) {
@@ -21,10 +19,14 @@ class ConfigBuilder(private val gson: Gson) {
 
         // --- Universal Parameters ---
         // These are available to all models as per your request.
-        setupConfig["safetySettings"] = getDefaultSafetySettings().map { s ->
-            mapOf("category" to s.category, "threshold" to s.threshold)
+        if (modelInfo.supportsSafetySettings) {
+            setupConfig["safetySettings"] = getDefaultSafetySettings().map { s ->
+                mapOf("category" to s.category, "threshold" to s.threshold)
+            }
         }
-        setupConfig["thinkingConfig"] = mapOf("thinkingBudget" to -1) // -1 can mean unlimited/default
+        if (modelInfo.supportsThinkingConfig) {
+            setupConfig["thinkingConfig"] = mapOf("thinkingBudget" to -1) // -1 can mean unlimited/default
+        }
 
 
         // --- Conditional Parameters based on ModelInfo blueprint ---
@@ -58,8 +60,9 @@ class ConfigBuilder(private val gson: Gson) {
         }
 
         // Session Management (Always included for WebSocket)
-        val sessionResumption = sessionHandle?.let { mapOf("handle" to it) } ?: emptyMap()
-        setupConfig["sessionResumption"] = sessionResumption
+        sessionHandle?.let {
+            setupConfig["sessionResumption"] = mapOf("handle" to it)
+        }
 
         val fullConfig = mapOf("setup" to setupConfig)
         return gson.toJson(fullConfig)
@@ -76,7 +79,7 @@ class ConfigBuilder(private val gson: Gson) {
 
     private fun getSystemInstructionParts(): List<Map<String, String>> {
         val systemInstructionText = """
-          /*  |### **LLM System Prompt: Bilingual Live Thai-English Interpreter (Pattaya Bar Scene)**
+            |### **LLM System Prompt: Bilingual Live Thai-English Interpreter (Pattaya Bar Scene)**
             |
             |**1. ROLE AND OBJECTIVE**
             |
@@ -173,6 +176,7 @@ class ConfigBuilder(private val gson: Gson) {
             |* **TARGET LANGUAGE ONLY:** If the input is Thai, output **ONLY** the final English translation. If the input is English, output **ONLY** the final Thai translation.
             |* **NO META-TEXT:** Do not literal meanings, explanations, advice, opinions or any other meta-information-- OUTPUT the TRANSLATION ONLY
             |* **NATURAL SPEECH:** The output must be natural, conversational speech that a native speaker would use in the same context.        """.trimIndent()
+        // Splitting logic remains, assuming this is intended behavior for the prompt parts
         return systemInstructionText.split(Regex("\n\n+")).map { mapOf("text" to it.trim()) }
     }
 }
