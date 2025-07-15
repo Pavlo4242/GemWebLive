@@ -1,4 +1,3 @@
-
 // app/src/main/java/com/gemweblive/WebSocketClient.kt
 package com.gemweblive
 
@@ -13,6 +12,9 @@ import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.launch
 import okhttp3.*
 import okio.ByteString
+import java.io.File
+import java.io.FileWriter
+import java.io.PrintWriter
 import java.util.concurrent.Executors
 
 class WebSocketClient(
@@ -34,12 +36,20 @@ class WebSocketClient(
     @Volatile private var isConnected = false
     private val scope = CoroutineScope(Executors.newSingleThreadExecutor().asCoroutineDispatcher())
     private val client = OkHttpClient()
+    private val gson = Gson()
+    private var logFileWriter: PrintWriter? = null
+
+    companion object {
+        private const val HOST = "generativelanguage.googleapis.com"
+        private const val TAG = "WebSocketClient"
+    }
 
     private fun sendConfigMessage() {
-        val configString = configBuilder.buildWebSocketConfig(modelInfo, sessionHandle)
-        Log.d("WebSocketClient", "Sending config: $configString")
-        webSocket?.send(configString)
-    } catch (e: Exception) {
+        try {
+            val configString = configBuilder.buildWebSocketConfig(modelInfo, sessionHandle)
+            Log.d(TAG, "Sending config for ${modelInfo.modelName}: $configString")
+            webSocket?.send(configString)
+        } catch (e: Exception) {
             Log.e(TAG, "Failed to send config", e)
         }
     }
@@ -51,7 +61,7 @@ class WebSocketClient(
         try {
             val logDir = File(context.getExternalFilesDir(null), "websocket_logs")
             if (!logDir.exists()) logDir.mkdirs()
-            logFile = File(logDir, "session_log_${System.currentTimeMillis()}.txt")
+            val logFile = File(logDir, "session_log_${System.currentTimeMillis()}.txt")
             logFileWriter = PrintWriter(FileWriter(logFile, true), true)
             logFileWriter?.println("--- New WebSocket Session Log: ${java.util.Date()} ---")
         } catch (e: Exception) {
@@ -63,131 +73,63 @@ class WebSocketClient(
         val request = Request.Builder()
             .url("wss://$HOST/ws/google.ai.generativelanguage.$apiVersion.GenerativeService.BidiGenerateContent?key=$apiKey")
             .build()
-
         webSocket = client.newWebSocket(request, object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
-                scope.launch {
-                    isConnected = true
-                    logFileWriter?.println("WEB_SOCKET_OPENED (HTTP Status: ${response.code})")
-                    sendConfigMessage()
-                    onOpen()
-                }
+                scope.launch { isConnected = true; sendConfigMessage(); onOpen() }
             }
-
             override fun onMessage(webSocket: WebSocket, text: String) {
-                scope.launch {
-                    logFileWriter?.println("INCOMING TEXT FRAME: $text")
-                    processIncomingMessage(text)
-                }
+                scope.launch { logFileWriter?.println("IN_TEXT: $text"); processIncomingMessage(text) }
             }
-
             override fun onMessage(webSocket: WebSocket, bytes: ByteString) {
-                scope.launch {
-                    val decodedText = bytes.utf8()
-                    Log.d(TAG, "INCOMING BINARY FRAME (decoded): ${decodedText.take(200)}...")
-                    logFileWriter?.println("INCOMING BINARY FRAME (decoded): $decodedText")
-                    processIncomingMessage(decodedText)
-                }
+                scope.launch { val decoded = bytes.utf8(); logFileWriter?.println("IN_BYTES: $decoded"); processIncomingMessage(decoded) }
             }
-
             override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
-                scope.launch {
-                    logFileWriter?.println("WEB_SOCKET_CLOSING: Code=$code, Reason=$reason")
-                    cleanup()
-                    this@WebSocketClient.onClosing(code, reason)
-                }
+                scope.launch { cleanup(); onClosing(code, reason) }
             }
-
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-                scope.launch {
-                    Log.e(TAG, "WebSocket failure", t)
-                    logFileWriter?.println("WEB_SOCKET_FAILURE: ${t.message}")
-                    cleanup()
-                    this@WebSocketClient.onFailure(t)
-                }
+                scope.launch { Log.e(TAG, "WebSocket Failure", t); cleanup(); onFailure(t) }
             }
         })
     }
-    
+
     private fun processIncomingMessage(messageText: String) {
-        try {
-            if (messageText.contains("\"setupComplete\"")) {
-                if (!isSetupComplete) {
-                    isSetupComplete = true
-                    Log.i(TAG, "Server setup complete.")
-                    onSetupComplete()
-                }
-            } else {
-                this@WebSocketClient.onMessage(messageText)
+        if (messageText.contains("\"setupComplete\"")) {
+            if (!isSetupComplete) {
+                isSetupComplete = true
+                onSetupComplete()
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error processing incoming message: '$messageText'", e)
+        } else {
+            onMessage(messageText)
         }
     }
-
-    fun sendText(text: String) {
-    if (!isReady()) return
-    scope.launch {
-        try {
-            // This structure is based on the BidiGenerateContentClientContent message type
-            val clientContentMessage = mapOf(
-                "clientContent" to mapOf(
-                    "turn" to mapOf(
-                         "parts" to listOf(
-                            mapOf("text" to text)
-                        )
-                    ),
-                    "turnComplete" to true
-                )
-            )
-
-            val messageToSend = gson.toJson(clientContentMessage)
-            Log.d(TAG, "OUTGOING TEXT FRAME: $messageToSend")
-            webSocket?.send(messageToSend)
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to send text message", e)
-        }
-    }
-}
 
     fun sendAudio(audioData: ByteArray) {
         if (!isReady()) return
-        scope.launch {
-            try {
-                val base64Audio = Base64.encodeToString(audioData, Base64.NO_WRAP)
-                val realtimeInput = mapOf(
-                    "realtimeInput" to mapOf(
-                        "audio" to mapOf(
-                            "data" to base64Audio,
-                            "mime_type" to "audio/pcm;rate=16000"
-                        )
-                    )
-                )
-                val messageToSend = gson.toJson(realtimeInput)
-                webSocket?.send(messageToSend)
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to send audio", e)
-            }
-        }
+        val base64Audio = Base64.encodeToString(audioData, Base64.NO_WRAP)
+        val realtimeInput = mapOf("realtimeInput" to mapOf("audio" to mapOf("data" to base64Audio, "mime_type" to "audio/pcm;rate=16000")))
+        webSocket?.send(gson.toJson(realtimeInput))
+    }
+
+    fun sendText(text: String) {
+        if (!isReady()) return
+        val clientContent = mapOf("clientContent" to mapOf("parts" to listOf(mapOf("text" to text))))
+        webSocket?.send(gson.toJson(clientContent))
     }
 
     fun disconnect() {
-        scope.launch {
-            cleanup()
-        }
+        scope.launch { cleanup() }
     }
 
     private fun cleanup() {
         if (isConnected) {
             webSocket?.close(1000, "Normal closure")
-            webSocket = null
         }
-        logFileWriter?.close()
-        logFileWriter = null
+        webSocket = null
         isConnected = false
         isSetupComplete = false
+        logFileWriter?.close()
+        logFileWriter = null
     }
 
     fun isReady(): Boolean = isConnected && isSetupComplete
-    fun isConnected(): Boolean = isConnected
 }
