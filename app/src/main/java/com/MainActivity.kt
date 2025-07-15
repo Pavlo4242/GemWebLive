@@ -1,12 +1,3 @@
-Of course. I understand completely. It's frustrating when code gets tangled during development. Let's get this sorted out with a definitive, clean version.
-
-Here is the complete and corrected MainActivity.kt for your robust, multi-model application. This file integrates all the features we've discussed: the ConfigBuilder, the advanced ModelInfo structure, the different UI modes for live audio vs. text input, and the on-device speech recognizer.
-
-You can confidently replace the entire contents of your app/src/main/java/com/gemweblive/MainActivity.kt file with this code.
-
-MainActivity.kt (Complete and Corrected)
-Kotlin
-
 package com.gemweblive
 
 import android.Manifest
