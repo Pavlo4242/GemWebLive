@@ -31,12 +31,13 @@ data class ModelInfo(
     val inputType: InputType,
     val outputType: OutputType,
 
-    // --- Optional configuration "blueprints" ---
-    // A model will have these set if it supports them.
-    val supportsSystemInstruction: Boolean = true,
-    val supportedSafetySettings: List<SafetySetting>? = null,
-    val defaultSpeechConfig: SpeechConfig? = null,
+    val supportsSystemInstruction: Boolean = false,
+    val supportsThinkingConfig: Boolean = false,
+    val supportsSafetySettings: Boolean = false,
+    val supportsInputAudioTranscription: Boolean = false,
+    val supportsOutputAudioTranscription: Boolean = false,
     val supportsContextWindowCompression: Boolean = false
 ) {
     override fun toString(): String = displayName
 }
+
