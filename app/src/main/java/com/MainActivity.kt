@@ -101,7 +101,7 @@ class MainActivity : AppCompatActivity() {
     
     //Text Input Functionality //
     private lateinit var currentModelInfo: ModelInfo
-
+    const ModelInfo:SupportsAudio
     companion object {
         private const val TAG = "MainActivity"
     }
@@ -237,7 +237,8 @@ class MainActivity : AppCompatActivity() {
             toggleListening()
         }
     } else {
-            startAudioTrnscpt()
+            audioHandler.startRecording()
+            updateStatus("Transcribing...")
         // --- Transcribe-Then-Send Mode ---
         // 1. Launch Android's on-device SpeechRecognizer intent.
         // 2. You will get the result back in onActivityResult.
