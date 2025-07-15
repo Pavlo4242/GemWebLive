@@ -12,26 +12,19 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.gemweblive.databinding.ActivityMainBinding
 import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
 import kotlinx.coroutines.*
 import java.lang.StringBuilder
 
-// --- Data classes for parsing server responses ---
+// Data class definitions
 data class ServerResponse(
-    @SerializedName("serverContent") val serverContent: ServerContent?,
-    @SerializedName("inputTranscription") val inputTranscription: Transcription?,
-    @SerializedName("outputTranscription") val outputTranscription: Transcription?,
-    @SerializedName("setupComplete") val setupComplete: SetupComplete?,
-    @SerializedName("sessionResumptionUpdate") val sessionResumptionUpdate: SessionResumptionUpdate?,
-    @SerializedName("goAway") val goAway: GoAway?
+    @SerializedName("serverContent") val serverContent: ServerContent?, @SerializedName("inputTranscription") val inputTranscription: Transcription?,
+    @SerializedName("outputTranscription") val outputTranscription: Transcription?, @SerializedName("setupComplete") val setupComplete: SetupComplete?,
+    @SerializedName("sessionResumptionUpdate") val sessionResumptionUpdate: SessionResumptionUpdate?, @SerializedName("goAway") val goAway: GoAway?
 )
-data class ServerContent(
-    @SerializedName("parts") val parts: List<Part>?,
-    @SerializedName("modelTurn") val modelTurn: ModelTurn?,
-    @SerializedName("inputTranscription") val inputTranscription: Transcription?,
-    @SerializedName("outputTranscription") val outputTranscription: Transcription?
-)
+data class ServerContent(@SerializedName("parts") val parts: List<Part>?, @SerializedName("modelTurn") val modelTurn: ModelTurn?, @SerializedName("inputTranscription") val inputTranscription: Transcription?, @SerializedName("outputTranscription") val outputTranscription: Transcription?)
 data class ModelTurn(@SerializedName("parts") val parts: List<Part>?)
 data class Part(@SerializedName("text") val text: String?, @SerializedName("inlineData") val inlineData: InlineData?)
 data class InlineData(@SerializedName("mime_type") val mimeType: String?, @SerializedName("data") val data: String?)
@@ -50,14 +43,14 @@ class MainActivity : AppCompatActivity() {
     private val mainScope = CoroutineScope(Dispatchers.Main)
     private val gson = Gson()
 
-    // --- State Management ---
+    // State Management
     private var sessionHandle: String? = null
     private val outputTranscriptBuffer = StringBuilder()
     @Volatile private var isListening = false
     @Volatile private var isSessionActive = false
     @Volatile private var isServerReady = false
 
-    // --- Configuration (Simple Version) ---
+    // Simple Configuration
     private val models = listOf("gemini-1.5-flash-preview", "gemini-1.5-pro-preview")
     private var selectedModel: String = models[0]
     private var apiVersions: List<ApiVersion> = emptyList()
@@ -120,10 +113,8 @@ class MainActivity : AppCompatActivity() {
 
     private fun setupUI() {
         translationAdapter = TranslationAdapter()
-        binding.transcriptLog.apply {
-            layoutManager = LinearLayoutManager(this@MainActivity)
-            adapter = translationAdapter
-        }
+        binding.transcriptLog.layoutManager = LinearLayoutManager(this)
+        binding.transcriptLog.adapter = translationAdapter
         binding.debugConnectBtn.setOnClickListener { connect() }
         binding.micBtn.setOnClickListener { handleMasterButton() }
         binding.settingsBtn.setOnClickListener { handleSettingsDisconnectButton() }
@@ -141,7 +132,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun prepareNewClient() {
         webSocketClient?.disconnect()
-        loadPreferences() // Reload preferences to get the latest settings
+        loadPreferences()
         selectedApiVersionObject = apiVersions.firstOrNull { it.value == getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE).getString("api_version", null) } ?: apiVersions.firstOrNull()
         selectedApiKeyInfo = apiKeys.firstOrNull { it.value == getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE).getString("api_key", null) } ?: apiKeys.firstOrNull()
 
@@ -173,7 +164,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showSettingsDialog() {
-        // This now correctly passes the simple list of model names
         val dialog = SettingsDialog(this, getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE), models)
         dialog.setOnDismissListener {
             loadPreferences()
@@ -232,6 +222,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startAudio() {
+        if (!::audioHandler.isInitialized) initializeComponentsDependentOnAudio()
         audioHandler.startRecording()
         updateStatus("Listening...")
     }
@@ -302,7 +293,6 @@ class MainActivity : AppCompatActivity() {
         val prefs = getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE)
         val currentApiVersion = apiVersions.firstOrNull { it.value == prefs.getString("api_version", null) } ?: apiVersions.firstOrNull()
         val currentApiKey = apiKeys.firstOrNull { it.value == prefs.getString("api_key", null) } ?: apiKeys.firstOrNull()
-
         binding.configDisplay.text = "Model: $selectedModel | Version: ${currentApiVersion?.displayName ?: "N/A"} | Key: ${currentApiKey?.displayName ?: "N/A"}"
     }
 
