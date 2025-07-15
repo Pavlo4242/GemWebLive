@@ -23,7 +23,7 @@ class WebSocketClient(
     private val vadSilenceMs: Int,
     private val apiVersion: String,
     private val apiKey: String,
-    private val sessionHandle: String?, // NEW: Accept session handle
+    private val sessionHandle: String?,
     private val onOpen: () -> Unit,
     private val onMessage: (String) -> Unit,
     private val onClosing: (Int, String) -> Unit,
@@ -60,7 +60,7 @@ class WebSocketClient(
         private const val HOST = "generativelanguage.googleapis.com"
         private const val TAG = "WebSocketClient"
 
-        // System instructions remain the same
+        // The system instruction text remains a single block here for readability
         private val SYSTEM_INSTRUCTION_TEXT = """
             ### **LLM System Prompt: Bilingual Live Thai-English Interpreter (Pattaya Bar Scene)**
 
@@ -165,7 +165,11 @@ class WebSocketClient(
 
     private fun sendConfigMessage() {
         try {
-            // --- MODIFIED: Build a dynamic configuration map ---
+            // --- NEW: Split the instruction text into paragraphs ---
+            val instructionParts = SYSTEM_INSTRUCTION_TEXT.split(Regex("\n\n+")).map {
+                mapOf("text" to it.trim())
+            }
+
             val setupConfig = mutableMapOf<String, Any>(
                 "model" to "models/$model",
                 "generationConfig" to mapOf(
@@ -173,23 +177,18 @@ class WebSocketClient(
                 ),
                 "inputAudioTranscription" to emptyMap<String, Any>(),
                 "outputAudioTranscription" to emptyMap<String, Any>(),
-                "systemInstruction" to mapOf(
-                    "parts" to listOf(
-                        mapOf("text" to SYSTEM_INSTRUCTION_TEXT)
-                    )
-                ),
+                // --- MODIFIED: Use the new list of parts ---
+                "systemInstruction" to mapOf("parts" to instructionParts),
                 "realtimeInputConfig" to mapOf(
                     "automaticActivityDetection" to mapOf(
                         "silenceDurationMs" to vadSilenceMs
                     )
                 ),
-                // NEW: Add context window compression for longer sessions
                 "contextWindowCompression" to mapOf(
                     "slidingWindow" to emptyMap<String, Any>()
                 )
             )
 
-            // NEW: Add session resumption if a handle exists
             val sessionResumption = if (sessionHandle != null) {
                 mapOf("handle" to sessionHandle)
             } else {
@@ -198,17 +197,13 @@ class WebSocketClient(
             setupConfig["sessionResumption"] = sessionResumption
 
             val fullConfig = mapOf("setup" to setupConfig)
-
             val configString = gson.toJson(fullConfig)
-            Log.d(TAG, "Sending config: $configString")
-            logFileWriter?.println("OUTGOING CONFIG FRAME: $configString")
             webSocket?.send(configString)
 
         } catch (e: Exception) {
             Log.e(TAG, "Failed to send config", e)
         }
     }
-
 
     fun connect() {
         if (isConnected) return
