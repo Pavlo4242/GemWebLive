@@ -28,6 +28,7 @@ jobs:
           rm -rf ~/.gradle/caches/
           rm -rf ~/.gradle/wrapper/ # This line is important for wrapper cache
           rm -rf ${{ github.workspace }}/.gradle/caches/
+          mkdir -p $ANDROID_HOME/app/build/outputs/apk/debug/
           echo "Gradle caches cleaned."
 
       # NEW: Cache Gradle dependencies
