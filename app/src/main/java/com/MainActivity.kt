@@ -57,7 +57,6 @@ class MainActivity : AppCompatActivity() {
     private var sessionHandle: String? = null
     private val outputTranscriptBuffer = StringBuilder()
     @Volatile private var isListening = false // Master switch for the conversation
-    @Volatile private var isTemporarilyPaused = false // For automatic turn-taking
     @Volatile private var isSessionActive = false
     @Volatile private var isServerReady = false
 
@@ -191,7 +190,6 @@ class MainActivity : AppCompatActivity() {
                 Log.w(TAG, "WebSocket onClosing callback received: Code=$code, Reason=$reason")
                 teardownSession(reconnect = true)
             } },
-            // FIXED: This lambda now matches the corrected constructor signature
             onFailure = { t, response -> mainScope.launch {
                 Log.e(TAG, "WebSocket onFailure callback received.", t)
                 var errorMessage = "Connection error: ${t.message}"
@@ -295,15 +293,6 @@ class MainActivity : AppCompatActivity() {
                 showError("Connection closing in $it. Will reconnect.")
             }
 
-            // --- Automatic Turn-Taking Logic ---
-            val hasServerContent = response.serverContent != null || response.outputTranscription != null
-            if (hasServerContent && isListening && !isTemporarilyPaused) {
-                Log.d(TAG, "Server is speaking, temporarily pausing user audio input.")
-                audioHandler.stopRecording()
-                isTemporarilyPaused = true
-                updateStatus("Server Speaking...")
-            }
-
             // --- Transcript and Audio Processing ---
             val outputText = response.outputTranscription?.text ?: response.serverContent?.outputTranscription?.text
             if (outputText != null) {
@@ -328,16 +317,8 @@ class MainActivity : AppCompatActivity() {
                 }
             }
 
-            // --- Resume Listening After Server Finishes ---
-            if (response.serverContent?.turnComplete == true) {
-                Log.d(TAG, "Server turn complete.")
-                if (isListening && isTemporarilyPaused) {
-                    Log.d(TAG, "Resuming user audio input.")
-                    audioHandler.startRecording()
-                    isTemporarilyPaused = false
-                    updateStatus("Listening...")
-                }
-            }
+            // --- REMOVED: The turnComplete block is no longer needed for full-duplex ---
+
         } catch (e: Exception) {
             Log.e(TAG, "Error processing message: $text", e)
         }
@@ -350,7 +331,6 @@ class MainActivity : AppCompatActivity() {
         }
         Log.i(TAG, "startAudio: Starting audio recording.")
         audioHandler.startRecording()
-        isTemporarilyPaused = false
         updateStatus("Listening...")
     }
 
@@ -365,7 +345,6 @@ class MainActivity : AppCompatActivity() {
             translationAdapter.addOrUpdateTranslation(finalTranslation, false)
             outputTranscriptBuffer.clear()
         }
-        isTemporarilyPaused = false
         updateStatus("Ready to listen")
     }
 
@@ -375,7 +354,6 @@ class MainActivity : AppCompatActivity() {
         isListening = false
         isSessionActive = false
         isServerReady = false
-        isTemporarilyPaused = false
         if (::audioHandler.isInitialized) audioHandler.stopRecording()
         webSocketClient?.disconnect()
         mainScope.launch {
@@ -407,7 +385,7 @@ class MainActivity : AppCompatActivity() {
         }
         binding.micBtn.isEnabled = (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED)
         binding.debugConnectBtn.isEnabled = !isSessionActive
-        binding.interimDisplay.visibility = if (isListening && !isTemporarilyPaused) View.VISIBLE else View.GONE
+        binding.interimDisplay.visibility = if (isListening) View.VISIBLE else View.GONE
         Log.d(TAG, "updateUI: UI updated with state - isSessionActive=$isSessionActive, isServerReady=$isServerReady, isListening=$isListening")
     }
 
