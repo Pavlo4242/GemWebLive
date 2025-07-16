@@ -191,17 +191,18 @@ class MainActivity : AppCompatActivity() {
                 teardownSession(reconnect = true)
             } },
             onFailure = { t, response -> mainScope.launch {
-                Log.e(TAG, "WebSocket onFailure callback received.", t)
-                var errorMessage = "Connection error: ${t.message}"
-                if (response != null) {
-                    errorMessage += "\n(Code: ${response.code})"
-                    if (response.code == 404) {
-                        errorMessage = "Error: The server endpoint was not found (404). Please check the API version and key."
-                    }
-                }
-                showError(errorMessage)
-                teardownSession()
-            } },
+    Log.e(TAG, "WebSocket onFailure callback received.", t)
+    var errorMessage = "Connection error: ${t.message}"
+    if (response != null) {
+        errorMessage += "\n(Code: ${response.code})"
+        if (response.code == 404) {
+            errorMessage = "Error: The server endpoint was not found (404). Please check the API version and key."
+        }
+    }
+    showError(errorMessage)
+    // The fix is to tell the session to attempt a reconnect.
+    teardownSession(reconnect = true)
+} },
             onSetupComplete = { mainScope.launch {
                 Log.i(TAG, "WebSocket onSetupComplete callback received.")
                 isServerReady = true
