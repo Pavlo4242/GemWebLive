@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">GemWebLive</string>
+    <string name="app_name">BWCLIVE</string>
 
     <string-array name="api_versions">
         <item>v1alpha</item>
