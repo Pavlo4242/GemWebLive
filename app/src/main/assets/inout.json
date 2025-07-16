@@ -1,0 +1,336 @@
+{
+  "input_output_groups": [
+    {
+      "inputs": ["audio", "images", "videos", "text", "pdf"],
+      "outputs": ["text"],
+      "models": [
+        {
+          "name": "Gemini 2.5 Pro",
+          "code": "gemini-2.5-pro",
+          "live_api": false,
+          "parameters": {
+            "temperature": {"range": [0.0, 2.0], "default": 1.0},
+            "topP": {"range": [0.0, 1.0], "default": 0.95},
+            "topK": {"fixed": 64},
+            "candidateCount": {"range": [1, 8], "default": 1},
+            "maxOutputTokens": {"max": 65536},
+            "stopSequences": {"range": ["array of strings, max 5"]},
+            "presencePenalty": {"range": [-2.0, 2.0]},
+            "frequencyPenalty": {"range": [-2.0, 2.0]},
+            "seed": {"range": ["integer"]},
+            "responseMimeType": ["text/plain", "application/json"],
+            "responseLogprobs": ["true", "false"],
+            "logprobs": {"range": [1, 20]},
+            "systemInstruction": {"type": "ContentUnion"},
+            "responseSchema": {"type": "SchemaUnion"},
+            "responseJsonSchema": {"type": "JSON Schema"},
+            "safetySettings": {
+              "HarmBlockThreshold": ["HARM_BLOCK_THRESHOLD_UNSPECIFIED", "BLOCK_LOW_AND_ABOVE", "BLOCK_MEDIUM_AND_ABOVE", "BLOCK_ONLY_HIGH", "BLOCK_NONE", "OFF"],
+              "HarmCategory": ["HARM_CATEGORY_UNSPECIFIED", "HARM_CATEGORY_HATE_SPEECH", "HARM_CATEGORY_DANGEROUS_CONTENT", "HARM_CATEGORY_HARASSMENT", "HARM_CATEGORY_SEXUALLY_EXPLICIT", "HARM_CATEGORY_CIVIC_INTEGRITY", "HARM_CATEGORY_IMAGE_HATE", "HARM_CATEGORY_IMAGE_DANGEROUS_CONTENT", "HARM_CATEGORY_IMAGE_HARASSMENT", "HARM_CATEGORY_IMAGE_SEXUALLY_EXPLICIT"],
+              "HarmBlockMethod": ["HARM_BLOCK_METHOD_UNSPECIFIED", "SEVERITY", "PROBABILITY"]
+            },
+            "tools": {"type": "ToolListUnion"},
+            "toolConfig": {"type": "ToolConfig"},
+            "labels": {"type": "Record<string, string>"},
+            "cachedContent": {"type": "string"},
+            "automaticFunctionCalling": {"type": "AutomaticFunctionCallingConfig"},
+            "thinkingConfig": {
+              "on_off": [-1, 0, 1],
+              "budget": {"range": ["integer"]}
+            }
+          }
+        }
+      ]
+    },
+    {
+      "inputs": ["audio", "images", "videos", "text"],
+      "outputs": ["text"],
+      "models": [
+        {
+          "name": "Gemini 2.5 Flash",
+          "code": "gemini-2.5-flash",
+          "live_api": false,
+          "parameters": {
+            "temperature": {"range": [0.0, 2.0], "default": 1.0},
+            "topP": {"range": [0.0, 1.0], "default": 0.95},
+            "topK": {"fixed": 64},
+            "candidateCount": {"range": [1, 8], "default": 1},
+            "maxOutputTokens": {"max": 65535},
+            "stopSequences": {"range": ["array of strings, max 5"]},
+            "presencePenalty": {"range": [-2.0, 2.0]},
+            "frequencyPenalty": {"range": [-2.0, 2.0]},
+            "seed": {"range": ["integer"]},
+            "responseMimeType": ["text/plain", "application/json"],
+            "responseLogprobs": ["true", "false"],
+            "logprobs": {"range": [1, 20]},
+            "systemInstruction": {"type": "ContentUnion"},
+            "responseSchema": {"type": "SchemaUnion"},
+            "responseJsonSchema": {"type": "JSON Schema"},
+            "safetySettings": {
+              "HarmBlockThreshold": ["HARM_BLOCK_THRESHOLD_UNSPECIFIED", "BLOCK_LOW_AND_ABOVE", "BLOCK_MEDIUM_AND_ABOVE", "BLOCK_ONLY_HIGH", "BLOCK_NONE", "OFF"],
+              "HarmCategory": ["HARM_CATEGORY_UNSPECIFIED", "HARM_CATEGORY_HATE_SPEECH", "HARM_CATEGORY_DANGEROUS_CONTENT", "HARM_CATEGORY_HARASSMENT", "HARM_CATEGORY_SEXUALLY_EXPLICIT", "HARM_CATEGORY_CIVIC_INTEGRITY", "HARM_CATEGORY_IMAGE_HATE", "HARM_CATEGORY_IMAGE_DANGEROUS_CONTENT", "HARM_CATEGORY_IMAGE_HARASSMENT", "HARM_CATEGORY_IMAGE_SEXUALLY_EXPLICIT"],
+              "HarmBlockMethod": ["HARM_BLOCK_METHOD_UNSPECIFIED", "SEVERITY", "PROBABILITY"]
+            },
+            "tools": {"type": "ToolListUnion"},
+            "toolConfig": {"type": "ToolConfig"},
+            "labels": {"type": "Record<string, string>"},
+            "cachedContent": {"type": "string"},
+            "automaticFunctionCalling": {"type": "AutomaticFunctionCallingConfig"},
+            "thinkingConfig": {
+              "on_off": [-1, 0, 1],
+              "budget": {"range": ["integer"]}
+            }
+          }
+        },
+        {
+          "name": "Gemini 2.5 Flash-Lite Preview",
+          "code": "gemini-2.5-flash-lite-preview-06-17",
+          "live_api": false,
+          "parameters": {
+            "temperature": {"range": [0.0, 2.0], "default": 1.0},
+            "topP": {"range": [0.0, 1.0], "default": 0.95},
+            "topK": {"fixed": 64},
+            "candidateCount": {"range": [1, 8], "default": 1},
+            "maxOutputTokens": {"max": 65535},
+            "stopSequences": {"range": ["array of strings, max 5"]},
+            "presencePenalty": {"range": [-2.0, 2.0]},
+            "frequencyPenalty": {"range": [-2.0, 2.0]},
+            "seed": {"range": ["integer"]},
+            "responseMimeType": ["text/plain", "application/json"],
+            "responseLogprobs": ["true", "false"],
+            "logprobs": {"range": [1, 20]},
+            "systemInstruction": {"type": "ContentUnion"},
+            "responseSchema": {"type": "SchemaUnion"},
+            "responseJsonSchema": {"type": "JSON Schema"},
+            "safetySettings": {
+              "HarmBlockThreshold": ["HARM_BLOCK_THRESHOLD_UNSPECIFIED", "BLOCK_LOW_AND_ABOVE", "BLOCK_MEDIUM_AND_ABOVE", "BLOCK_ONLY_HIGH", "BLOCK_NONE", "OFF"],
+              "HarmCategory": ["HARM_CATEGORY_UNSPECIFIED", "HARM_CATEGORY_HATE_SPEECH", "HARM_CATEGORY_DANGEROUS_CONTENT", "HARM_CATEGORY_HARASSMENT", "HARM_CATEGORY_SEXUALLY_EXPLICIT", "HARM_CATEGORY_CIVIC_INTEGRITY", "HARM_CATEGORY_IMAGE_HATE", "HARM_CATEGORY_IMAGE_DANGEROUS_CONTENT", "HARM_CATEGORY_IMAGE_HARASSMENT", "HARM_CATEGORY_IMAGE_SEXUALLY_EXPLICIT"],
+              "HarmBlockMethod": ["HARM_BLOCK_METHOD_UNSPECIFIED", "SEVERITY", "PROBABILITY"]
+            },
+            "tools": {"type": "ToolListUnion"},
+            "toolConfig": {"type": "ToolConfig"},
+            "labels": {"type": "Record<string, string>"},
+            "cachedContent": {"type": "string"},
+            "automaticFunctionCalling": {"type": "AutomaticFunctionCallingConfig"},
+            "thinkingConfig": {
+              "on_off": [-1, 0, 1],
+              "budget": {"range": ["integer"]}
+            }
+          }
+        },
+        {
+          "name": "Gemini 2.0 Flash",
+          "code": "gemini-2.0-flash",
+          "live_api": false,
+          "parameters": {
+            "temperature": {"range": [0.0, 2.0], "default": 1.0},
+            "topP": {"range": [0.0, 1.0], "default": 0.95},
+            "topK": {"fixed": 64},
+            "candidateCount": {"range": [1, 8], "default": 1},
+            "maxOutputTokens": {"max": 8192},
+            "stopSequences": {"range": ["array of strings, max 5"]},
+            "presencePenalty": {"range": [-2.0, 2.0]},
+            "frequencyPenalty": {"range": [- Westbrook": {"range": [-2.0, 2.0]},
+            "seed": {"range": ["integer"]},
+            "responseMimeType": ["text/plain", "application/json"],
+            "responseLogprobs": ["true", "false"],
+            "logprobs": {"range": [1, 20]},
+            "systemInstruction": {"type": "ContentUnion"},
+            "responseSchema": {"type": "SchemaUnion"},
+            "responseJsonSchema": {"type": "JSON Schema"},
+            "safetySettings": {
+              "HarmBlockThreshold": ["HARM_BLOCK_THRESHOLD_UNSPECIFIED", "BLOCK_LOW_AND_ABOVE", "BLOCK_MEDIUM_AND_ABOVE", "BLOCK_ONLY_HIGH", "BLOCK_NONE", "OFF"],
+              "HarmCategory": ["HARM_CATEGORY_UNSPECIFIED", "HARM_CATEGORY_HATE_SPEECH", "HARM_CATEGORY_DANGEROUS_CONTENT", "HARM_CATEGORY_HARASSMENT", "HARM_CATEGORY_SEXUALLY_EXPLICIT", "HARM_CATEGORY_CIVIC_INTEGRITY", "HARM_CATEGORY_IMAGE_HATE", "HARM_CATEGORY_IMAGE_DANGEROUS_CONTENT", "HARM_CATEGORY_IMAGE_HARASSMENT", "HARM_CATEGORY_IMAGE_SEXUALLY_EXPLICIT"],
+              "HarmBlockMethod": ["HARM_BLOCK_METHOD_UNSPECIFIED", "SEVERITY", "PROBABILITY"]
+            },
+            "tools": {"type": "ToolListUnion"},
+            "toolConfig": {"type": "ToolConfig"},
+            "labels": {"type": "Record<string, string>"},
+            "cachedContent": {"type": "string"},
+            "automaticFunctionCalling": {"type": "AutomaticFunctionCallingConfig"},
+            "thinkingConfig": {
+              "on_off": [-1, 0, 1],
+              "budget": {"range": ["integer"]}
+            }
+          }
+        },
+        {
+          "name": "Gemini 2.0 Flash-Lite",
+          "code": "gemini-2.0-flash-lite",
+          "live_api": false,
+          "parameters": {
+            "temperature": {"range": [0.0, 2.0], "default": 1.0},
+            "topP": {"range": [0.0, 1.0], "default": 0.95},
+            "topK": {"fixed": 64},
+            "candidateCount": {"range": [1, 8], "default": 1},
+            "maxOutputTokens": {"max": 8192},
+            "stopSequences": {"range": ["array of strings, max 5"]},
+            "presencePenalty": {"range": [-2.0, 2.0]},
+            "frequencyPenalty": {"range": [-2.0, 2.0]},
+            "seed": {"range": ["integer"]},
+            "responseMimeType": ["text/plain", "application/json"],
+            "responseLogprobs": ["true", "false"],
+            "logprobs": {"range": [1, 20]},
+            "systemInstruction": {"type": "ContentUnion"},
+            "responseSchema": {"type": "SchemaUnion"},
+            "responseJsonSchema": {"type": "JSON Schema"},
+            "safetySettings": {
+              "HarmBlockThreshold": ["HARM_BLOCK_THRESHOLD_UNSPECIFIED", "BLOCK_LOW_AND_ABOVE", "BLOCK_MEDIUM_AND_ABOVE", "BLOCK_ONLY_HIGH", "BLOCK_NONE", "OFF"],
+              "HarmCategory": ["HARM_CATEGORY_UNSPECIFIED", "HARM_CATEGORY_HATE_SPEECH", "HARM_CATEGORY_DANGEROUS_CONTENT", "HARM_CATEGORY_HARASSMENT", "HARM_CATEGORY_SEXUALLY_EXPLICIT", "HARM_CATEGORY_CIVIC_INTEGRITY", "HARM_CATEGORY_IMAGE_HATE", "HARM_CATEGORY_IMAGE_DANGEROUS_CONTENT", "HARM_CATEGORY_IMAGE_HARASSMENT", "HARM_CATEGORY_IMAGE_SEXUALLY_EXPLICIT"],
+              "HarmBlockMethod": ["HARM_BLOCK_METHOD_UNSPECIFIED", "SEVERITY", "PROBABILITY"]
+            },
+            "tools": {"type": "ToolListUnion"},
+            "toolConfig": {"type": "ToolConfig"},
+            "labels": {"type": "Record<string, string>"},
+            "cachedContent": {"type": "string"},
+            "automaticFunctionCalling": {"type": "AutomaticFunctionCallingConfig"},
+            "thinkingConfig": {
+              "on_off": [-1, 0, 1],
+              "budget": {"range": ["integer"]}
+            }
+          }
+        },
+        {
+          "name": "Gemini 1.5 Flash",
+          "code": "gemini-1.5-flash",
+          "live_api": false,
+          "parameters": {
+            "temperature": {"range": [0.0, 2.0], "default": 1.0},
+            "topP": {"range": [0.0, 1.0], "default": 0.95},
+            "topK": {"fixed": 64},
+            "candidateCount": {"range": [1, 8], "default": 1},
+            "maxOutputTokens": {"max": 8192},
+            "stopSequences": {"range": ["array of strings, max 5"]},
+            "presencePenalty": {"range": [-2.0, 2.0]},
+            "frequencyPenalty": {"range": [-2.0, 2.0]},
+            "seed": {"range": ["integer"]},
+            "responseMimeType": ["text/plain", "application/json"],
+            "responseLogprobs": ["true", "false"],
+            "logprobs": {"range": [1, 20]},
+            "systemInstruction": {"type": "ContentUnion"},
+            "responseSchema": {"type": "SchemaUnion"},
+            "responseJsonSchema": {"type": "JSON Schema"},
+            "safetySettings": {
+              "HarmBlockThreshold": ["HARM_BLOCK_THRESHOLD_UNSPECIFIED", "BLOCK_LOW_AND_ABOVE", "BLOCK_MEDIUM_AND_ABOVE", "BLOCK_ONLY_HIGH", "BLOCK_NONE", "OFF"],
+              "HarmCategory": ["HARM_CATEGORY_UNSPECIFIED", "HARM_CATEGORY_HATE_SPEECH", "HARM_CATEGORY_DANGEROUS_CONTENT", "HARM_CATEGORY_HARASSMENT", "HARM_CATEGORY_SEXUALLY_EXPLICIT", "HARM_CATEGORY_CIVIC_INTEGRITY", "HARM_CATEGORY_IMAGE_HATE", "HARM_CATEGORY_IMAGE_DANGEROUS_CONTENT", "HARM_CATEGORY_IMAGE_HARASSMENT", "HARM_CATEGORY_IMAGE_SEXUALLY_EXPLICIT"],
+              "HarmBlockMethod": ["HARM_BLOCK_METHOD_UNSPECIFIED", "SEVERITY", "PROBABILITY"]
+            },
+            "tools": {"type": "ToolListUnion"},
+            "toolConfig": {"type": "ToolConfig"},
+            "labels": {"type": "Record<string, string>"},
+            "cachedContent": {"type": "string"},
+            "automaticFunctionCalling": {"type": "AutomaticFunctionCallingConfig"},
+            "thinkingConfig": {
+              "on_off": [-1, 0, 1],
+              "budget": {"range": ["integer"]}
+            }
+          }
+        },
+        {
+          "name": "Gemini 1.5 Flash-8B",
+          "code": "gemini-1.5-flash-8b",
+          "live_api": false,
+          "parameters": {
+            "temperature": {"range": [0.0, 2.0], "default": 1.0},
+            "topP": {"range": [0.0, 1.0], "default": 0.95},
+            "topK": {"fixed": 64},
+            "candidateCount": {"range": [1, 8], "default": 1},
+            "maxOutputTokens": {"max": 8192},
+            "stopSequences": {"range": ["array of strings, max 5"]},
+            "presencePenalty": {"range": [-2.0, 2.0]},
+            "frequencyPenalty": {"range": [-2.0, 2.0]},
+            "seed": {"range": ["integer"]},
+            "responseMimeType": ["text/plain", "application/json"],
+            "responseLogprobs": ["true", "false"],
+            "logprobs": {"range": [1, 20]},
+            "systemInstruction": {"type": "ContentUnion"},
+            "responseSchema": {"type": "SchemaUnion"},
+            "responseJsonSchema": {"type": "JSON Schema"},
+            "safetySettings": {
+              "HarmBlockThreshold": ["HARM_BLOCK_THRESHOLD_UNSPECIFIED", "BLOCK_LOW_AND_ABOVE", "BLOCK_MEDIUM_AND_ABOVE", "BLOCK_ONLY_HIGH", "BLOCK_NONE", "OFF"],
+              "HarmCategory": ["HARM_CATEGORY_UNSPECIFIED", "HARM_CATEGORY_HATE_SPEECH", "HARM_CATEGORY_DANGEROUS_CONTENT", "HARM_CATEGORY_HARASSMENT", "HARM_CATEGORY_SEXUALLY_EXPLICIT", "HARM_CATEGORY_CIVIC_INTEGRITY", "HARM_CATEGORY_IMAGE_HATE", "HARM_CATEGORY_IMAGE_DANGEROUS_CONTENT", "HARM_CATEGORY_IMAGE_HARASSMENT", "HARM_CATEGORY_IMAGE_SEXUALLY_EXPLICIT"],
+              "HarmBlockMethod": ["HARM_BLOCK_METHOD_UNSPECIFIED", "SEVERITY", "PROBABILITY"]
+            },
+            "tools": {"type": "ToolListUnion"},
+            "toolConfig": {"type": "ToolConfig"},
+            "labels": {"type": "Record<string, string>"},
+            "cachedContent": {"type": "string"},
+            "automaticFunctionCalling": {"type": "AutomaticFunctionCallingConfig"},
+            "thinkingConfig": {
+              "on_off": [-1, 0, 1],
+              "budget": {"range": ["integer"]}
+            }
+          }
+        },
+        {
+          "name": "Gemini 1.5 Pro",
+          "code": "gemini-1.5-pro",
+          "live_api": false,
+          "parameters": {
+            "temperature": {"range": [0.0, 2.0], "default": 1.0},
+            "topP": {"range": [0.0, 1.0], "default": 0.95},
+            "topK": {"fixed": 64},
+            "candidateCount": {"range": [1, 8], "default": 1},
+            "maxOutputTokens": {"max": 8192},
+            "stopSequences": {"range": ["array of strings, max 5"]},
+            "presencePenalty": {"range": [-2.0, 2.0]},
+            "frequencyPenalty": {"range": [-2.0, 2.0]},
+            "seed": {"range": ["integer"]},
+            "responseMimeType": ["text/plain", "application/json"],
+            "responseLogprobs": ["true", "false"],
+            "logprobs": {"range": [1, 20]},
+            "systemInstruction": {"type": "ContentUnion"},
+            "responseSchema": {"type": "SchemaUnion"},
+            "responseJsonSchema": {"type": "JSON Schema"},
+            "safetySettings": {
+              "HarmBlockThreshold": ["HARM_BLOCK_THRESHOLD_UNSPECIFIED", "BLOCK_LOW_AND_ABOVE", "BLOCK_MEDIUM_AND_ABOVE", "BLOCK_ONLY_HIGH", "BLOCK_NONE", "OFF"],
+              "HarmCategory": ["HARM_CATEGORY_UNSPECIFIED", "HARM_CATEGORY_HATE_SPEECH", "HARM_CATEGORY_DANGEROUS_CONTENT", "HARM_CATEGORY_HARASSMENT", "HARM_CATEGORY_SEXUALLY_EXPLICIT", "HARM_CATEGORY_CIVIC_INTEGRITY", "HARM_CATEGORY_IMAGE_HATE", "HARM_CATEGORY_IMAGE_DANGEROUS_CONTENT", "HARM_CATEGORY_IMAGE_HARASSMENT", "HARM_CATEGORY_IMAGE_SEXUALLY_EXPLICIT"],
+              "HarmBlockMethod": ["HARM_BLOCK_METHOD_UNSPECIFIED", "SEVERITY", "PROBABILITY"]
+            },
+            "tools": {"type": "ToolListUnion"},
+            "toolConfig": {"type": "ToolConfig"},
+            "labels": {"type": "Record<string, string>"},
+            "cachedContent": {"type": "string"},
+            "automaticFunctionCalling": {"type": "AutomaticFunctionCallingConfig"},
+            "thinkingConfig": {
+              "on_off": [-1, 0, 1],
+              "budget": {"range": ["integer"]}
+            }
+          }
+        }
+      ]
+    },
+    {
+      "inputs": ["audio", "images", "videos", "text"],
+      "outputs": ["text", "images"],
+      "models": [
+        {
+          "name": "Gemini 2.0 Flash Preview Image Generation",
+          "code": "gemini-2.0-flash-preview-image-generation",
+          "live_api": false,
+          "parameters": {
+            "temperature": {"range": [0.0, 2.0], "default": 1.0},
+            "topP": {"range": [0.0, 1.0], "default": 0.95},
+            "topK": {"fixed": 64},
+            "candidateCount": {"range": [1, 8], "default": 1},
+            "maxOutputTokens": {"max": 8192},
+            "stopSequences": {"range": ["array of strings, max 5"]},
+            "presencePenalty": {"range": [-2.0, 2.0]},
+            "frequencyPenalty": {"range": [-2.0, 2.0]},
+            "seed": {"range": ["integer"]},
+            "responseMimeType": ["text/plain", "application/json"],
+            "responseLogprobs": ["true", "false"],
+            "logprobs": {"range": [1, 20]},
+            "systemInstruction": {"type": "ContentUnion"},
+            "responseSchema": {"type": "SchemaUnion"},
+            "responseJsonSchema": {"type": "JSON Schema"},
+            "safetySettings": {
+              "HarmBlockThreshold": ["HARM_BLOCK_THRESHOLD_UNSPECIFIED", "BLOCK_LOW_AND_ABOVE", "BLOCK_MEDIUM_AND_ABOVE", "BLOCK_ONLY_HIGH", "BLOCK_NONE", "OFF"],
+              "HarmCategory": ["HARM_CATEGORY_UNSPECIFIED", "HARM_CATEGORY_HATE_SPEECH", "HARM_CATEGORY_DANGEROUS_CONTENT", "HARM_CATEGORY_HARASSMENT", "HARM_CATEGORY_SEXUALLY_EXPLICIT", "HARM_CATEGORY_CIVIC_INTEGRITY", "HARM_CATEGORY_IMAGE_HATE", "HARM_CATEGORY_IMAGE_DANGEROUS_CONTENT", "HARM_CATEGORY_IMAGE_HARASSMENT", "HARM_CATEGORY_IMAGE_SEXUALLY_EXPLICIT"],
+              "HarmBlockMethod": ["HARM_BLOCK_METHOD_UNSPECIFIED", "SEVERITY", "PROBABILITY"]
+            },
+            "tools": {"type": "ToolListUnion"},
+            "toolConfig": {"type": "ToolConfig"},
+            "labels": {"type": "Record<string, string>"},
+            "cachedContent": {"type": "string"},
+            "
