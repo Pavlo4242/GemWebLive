@@ -1,0 +1,27 @@
+// In SettingsDialog.kt
+
+private fun setupModelSpinner() {
+    val models = ModelRepository(context).getModels()
+    val adapter = ArrayAdapter(context, android.R.layout.simple_spinner_item, models)
+    binding.modelSpinner.adapter = adapter
+
+    binding.modelSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+        override fun onItemSelected(parent: AdapterView<*>, view: View, position: Int, id: Long) {
+            val selectedModel = models[position]
+            displayParametersFor(selectedModel)
+        }
+        override fun onNothingSelected(parent: AdapterView<*>) {}
+    }
+}
+
+private fun displayParametersFor(model: Model) {
+    // Clear existing parameter views
+    // ...
+
+    // Dynamically create UI elements (e.g., sliders, text inputs) for each parameter
+    for (param in model.parameters) {
+        if (param.isUserConfigurable) {
+            // Create a UI element for this parameter
+        }
+    }
+}
