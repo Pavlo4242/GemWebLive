@@ -1,3 +1,44 @@
+// In your UI-building class, like SettingsDialog.kt
+
+class SettingsDialog(context: Context, ...) : Dialog(context) {
+
+    /**
+     * A private blacklist of parameters that should NEVER be shown to the user in the UI.
+     * This keeps our UI clean and prevents users from changing critical settings.
+     */
+    private val uiParameterBlacklist = setOf(
+        "safetySettings",
+        "systemInstruction",
+        "tools",
+        "toolConfig",
+        "cachedContent",
+        "responseSchema"
+        // Add any other params you want to hide here
+    )
+
+    private fun displayParametersFor(model: Model) {
+        // Clear any old parameter views
+        parameterViewsContainer.removeAllViews()
+
+        // Iterate through the model's allowed parameters
+        for ((paramName, paramDetails) in model.parameters) {
+
+            // *** THIS IS THE LOGIC ***
+            // If the parameter is NOT in our blacklist, then we create a UI control for it.
+            if (!uiParameterBlacklist.contains(paramName)) {
+                val control = createUiControlFor(paramName, paramDetails)
+                parameterViewsContainer.addView(control)
+            }
+        }
+    }
+
+    // A helper function to create a Slider, Dropdown, etc.
+    private fun createUiControlFor(name: String, param: Parameter): View {
+        // Logic to create a view based on param.range, param.options, etc.
+        // ...
+        return View(context) // Placeholder
+    }
+}
 // In SettingsDialog.kt
 
 private fun setupModelSpinner() {
