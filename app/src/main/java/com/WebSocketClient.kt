@@ -236,24 +236,20 @@ class WebSocketClient(
             }
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-                            scope.launch {
-                                Log.e(TAG, "WebSocket failure", t)
-                                // REMOVE or guard this line that tries to read the response body,
-                                // as it can cause an IllegalStateException if the body is already closed.
-                                // For a 404 with a 0-byte body, it's not useful anyway.
-                                // val responseBodyString = response?.body?.string()?.take(500) ?: "N/A"
-            
-                                // Log the response code and a relevant message based on the Throwable
-                                val logMessage = "--> WEB_SOCKET_FAILURE: ${t.message}" +
-                                                 (if (response != null) ", ResponseCode=${response.code}" else "")
-                                logFileWriter?.println(logMessage)
-                                logFileWriter?.println("--> StackTrace: ${t.stackTraceToString()}")
-            
-                                cleanup()
-                                // The MainActivity's onFailure handler already checks response.code for a specific message
-                                this@WebSocketClient.onFailure(t, response)
-                            }
-                        }
+    scope.launch {
+        Log.e(TAG, "WebSocket failure", t)
+
+        // Log the response code and a relevant message based on the Throwable
+        val logMessage = "--> WEB_SOCKET_FAILURE: ${t.message}" +
+                         (if (response != null) ", ResponseCode=${response.code}" else "")
+        logFileWriter?.println(logMessage)
+        logFileWriter?.println("--> StackTrace: ${t.stackTraceToString()}")
+
+        cleanup()
+        // The MainActivity's onFailure handler already checks response.code for a specific message
+        this@WebSocketClient.onFailure(t, response)
+    }
+}
         })
     }
 
