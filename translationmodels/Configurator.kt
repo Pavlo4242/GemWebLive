@@ -9,48 +9,45 @@ class Configurator {
 
     private val gson = Gson()
 
-    /**
-     * Creates the final JSON payload to be sent to the API.
-     *
-     * @param model The selected Model object.
-     * @param userSettings A map of settings the user has chosen in the UI, e.g., {"temperature": 1.5, "maxOutputTokens": 1024}.
-     * @return A JSON String ready to be sent as the request body.
-     */
     fun buildApiConfig(model: Model, userSettings: Map<String, Any>): String {
+        val payload = mutableMapOf<String, Any>()
         val generationConfig = mutableMapOf<String, Any>()
 
-        // 1. Iterate through the model's ALLOWED parameters
-        for ((paramName, paramDetails) in model.parameters) {
-
-            // 2. Check if the user has provided a value for this parameter
-            if (userSettings.containsKey(paramName)) {
-                generationConfig[paramName] = userSettings.getValue(paramName)
+        // Start with the user's settings, but only include ones valid for this model
+        for ((key, value) in userSettings) {
+            if (model.parameters.containsKey(key)) {
+                generationConfig[key] = value
             }
-            // 3. If not, check if there's a default value we should use
-            else if (paramDetails.default != null) {
-                generationConfig[paramName] = paramDetails.default
-            }
-            // (If neither, we don't include it unless it's mandatory)
         }
 
-        // 4. Handle non-configurable, but required, parameters
-        // These are added by the configurator, not the user.
-        val safetySettings = mapOf(
-            "safetySettings" to listOf(
-                mapOf("category" to "HARM_CATEGORY_HARASSMENT", "threshold" to "BLOCK_NONE"),
-                mapOf("category" to "HARM_CATEGORY_HATE_SPEECH", "threshold" to "BLOCK_NONE"),
-                mapOf("category" to "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold" to "BLOCK_NONE"),
-                mapOf("category" to "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold" to "BLOCK_NONE")
-            )
+        // --- MANDATORY & CONDITIONAL LOGIC ---
+
+        // Rule: 'safetySettings' are mandatory for the API, but not set by the user.
+        // We add them here with a safe, hardcoded default.
+        payload["safetySettings"] = listOf(
+            mapOf("category" to "HARM_CATEGORY_HARASSMENT", "threshold" to "BLOCK_NONE"),
+            mapOf("category" to "HARM_CATEGORY_HATE_SPEECH", "threshold" to "BLOCK_NONE"),
+            mapOf("category" to "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold" to "BLOCK_NONE"),
+            mapOf("category" to "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold" to "BLOCK_NONE")
         )
 
-        // 5. Construct the final request body
-        val finalPayload = mapOf(
-            "model" to "models/${model.code}", // Always mandatory
-            "generationConfig" to generationConfig,
-            // Add other top-level params like safetySettings if they apply
-        )
+        // Rule: 'systemInstruction' is critical for some models.
+        // Let's add it if the model supports it (as determined by its parameters).
+        if (model.parameters.containsKey("systemInstruction")) {
+             // You would get your actual system prompt from a helper function
+            payload["systemInstruction"] = mapOf("parts" to listOf(mapOf("text" to "You are a helpful translator.")))
+        }
+        
+        // Rule: 'responseModalities' is conditional for audio output models.
+        if (model.outputs.contains("audio")) {
+            generationConfig["responseModalities"] = listOf("AUDIO", "TEXT")
+        }
 
-        return gson.toJson(finalPayload)
+
+        // Final Assembly
+        payload["model"] = "models/${model.code}"
+        payload["generationConfig"] = generationConfig
+
+        return gson.toJson(payload)
     }
 }
