@@ -1,0 +1,152 @@
+{
+  "input_output_groups": [
+    {
+      "inputs": ["audio", "images", "videos", "text", "pdf"],
+      "outputs": ["text"],
+      "models": [
+        {
+          "name": "Gemini 2.5 Pro",
+          "code": "gemini-2.5-pro",
+          "live_api": false
+        }
+      ]
+    },
+    {
+      "inputs": ["audio", "images", "videos", "text"],
+      "outputs": ["text"],
+      "models": [
+        {
+          "name": "Gemini 2.5 Flash",
+          "code": "gemini-2.5-flash",
+          "live_api": false
+        },
+        {
+          "name": "Gemini 2.5 Flash-Lite Preview",
+          "code": "gemini-2.5-flash-lite-preview-06-17",
+          "live_api": false
+        },
+        {
+          "name": "Gemini 2.0 Flash",
+          "code": "gemini-2.0-flash",
+          "live_api": false
+        },
+        {
+          "name": "Gemini 2.0 Flash-Lite",
+          "code": "gemini-2.0-flash-lite",
+          "live_api": false
+        },
+        {
+          "name": "Gemini 1.5 Flash",
+          "code": "gemini-1.5-flash",
+          "live_api": false
+        },
+        {
+          "name": "Gemini 1.5 Flash-8B",
+          "code": "gemini-1.5-flash-8b",
+          "live_api": false
+        },
+        {
+          "name": "Gemini 1.5 Pro",
+          "code": "gemini-1.5-pro",
+          "live_api": false
+        }
+      ]
+    },
+    {
+      "inputs": ["audio", "images", "videos", "text"],
+      "outputs": ["text", "images"],
+      "models": [
+        {
+          "name": "Gemini 2.0 Flash Preview Image Generation",
+          "code": "gemini-2.0-flash-preview-image-generation",
+          "live_api": false
+        }
+      ]
+    },
+    {
+      "inputs": ["text"],
+      "outputs": ["audio"],
+      "models": [
+        {
+          "name": "Gemini 2.5 Flash Preview TTS",
+          "code": "gemini-2.5-flash-preview-tts",
+          "live_api": false
+        },
+        {
+          "name": "Gemini 2.5 Pro Preview TTS",
+          "code": "gemini-2.5-pro-preview-tts",
+          "live_api": false
+        }
+      ]
+    },
+    {
+      "inputs": ["text"],
+      "outputs": ["images"],
+      "models": [
+        {
+          "name": "Imagen 4",
+          "code": "imagen-4.0-generate-preview-06-06",
+          "live_api": false
+        },
+        {
+          "name": "Imagen 4 Ultra",
+          "code": "imagen-4.0-ultra-generate-preview-06-06",
+          "live_api": false
+        },
+        {
+          "name": "Imagen 3",
+          "code": "imagen-3.0-generate-002",
+          "live_api": false
+        }
+      ]
+    },
+    {
+      "inputs": ["text", "images"],
+      "outputs": ["video"],
+      "models": [
+        {
+          "name": "Veo 2",
+          "code": "veo-2.0-generate-001",
+          "live_api": false
+        }
+      ]
+    },
+    {
+      "inputs": ["text"],
+      "outputs": ["text embeddings"],
+      "models": [
+        {
+          "name": "Gemini Embedding",
+          "code": "gemini-embedding-001",
+          "live_api": false
+        }
+      ]
+    },
+    {
+      "inputs": ["audio", "video", "text"],
+      "outputs": ["text", "audio"],
+      "models": [
+        {
+          "name": "Gemini 2.5 Flash Live",
+          "code": "gemini-live-2.5-flash-preview",
+          "live_api": true
+        },
+        {
+          "name": "Gemini 2.0 Flash Live",
+          "code": "gemini-2.0-flash-live-001",
+          "live_api": true
+        },
+        {
+          "name": "Gemini 2.5 Flash Native Audio",
+          "code": "gemini-2.5-flash-preview-native-audio-dialog",
+          "live_api": true
+        },
+        {
+          "name": "Gemini 2.5 Flash Native Audio Thinking",
+          "code": "gemini-2.5-flash-exp-native-audio-thinking-dialog",
+          "live_api": true
+        }
+      ]
+    }
+  ]
+}
