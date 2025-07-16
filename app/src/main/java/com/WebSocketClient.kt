@@ -145,7 +145,7 @@ class WebSocketClient(
         }
         val setupConfig = mutableMapOf<String, Any>(
             "model" to "models/$modelName",
-            "responseModalities" to listOf("AUDIO"),
+            "generationConfig" to mapOf("responseModalities" to listOf("AUDIO")), // <-- ADD THIS LINE
             "systemInstruction" to mapOf("parts" to instructionParts),
             "inputAudioTranscription" to emptyMap<String, Any>(),
             "outputAudioTranscription" to emptyMap<String, Any>(),
