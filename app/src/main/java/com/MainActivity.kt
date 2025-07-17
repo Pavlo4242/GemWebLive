@@ -1,4 +1,3 @@
-//MainActivity.kt
 package com.BWCTrans
 
 import android.Manifest
@@ -19,7 +18,7 @@ import kotlinx.coroutines.*
 import okhttp3.Response
 import java.lang.StringBuilder
 
-// --- Data classes for parsing server responses ---
+// (Data classes remain the same)
 data class ServerResponse(
     @SerializedName("serverContent") val serverContent: ServerContent?,
     @SerializedName("inputTranscription") val inputTranscription: Transcription?,
@@ -56,7 +55,7 @@ class MainActivity : AppCompatActivity() {
     // --- State Management ---
     private var sessionHandle: String? = null
     private val outputTranscriptBuffer = StringBuilder()
-    @Volatile private var isListening = false // Master switch for the conversation
+    @Volatile private var isListening = false
     @Volatile private var isSessionActive = false
     @Volatile private var isServerReady = false
 
@@ -67,7 +66,7 @@ class MainActivity : AppCompatActivity() {
     private var apiKeys: List<ApiKeyInfo> = emptyList()
     private var selectedApiVersionObject: ApiVersion? = null
     private var selectedApiKeyInfo: ApiKeyInfo? = null
-    
+
     private lateinit var requestPermissionLauncher: ActivityResultLauncher<String>
 
     // --- Reconnection Logic ---
@@ -79,11 +78,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-    super.onCreate(savedInstanceState)
-    binding = ActivityMainBinding.inflate(layoutInflater)
-    setContentView(binding.root)
-    Log.d(TAG, "onCreate: Activity created.")
-
+        super.onCreate(savedInstanceState)
+        binding = ActivityMainBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+        Log.d(TAG, "onCreate: Activity created.")
 
         loadApiVersionsFromResources()
         loadApiKeysFromResources()
@@ -102,7 +100,6 @@ class MainActivity : AppCompatActivity() {
 
         checkPermissions()
         setupUI()
-        
     }
 
     private fun loadPreferences() {
@@ -136,56 +133,46 @@ class MainActivity : AppCompatActivity() {
         Log.d(TAG, "loadApiKeysFromResources: Loaded ${apiKeys.size} API keys. Selected: ${selectedApiKeyInfo?.displayName}")
     }
 
-private fun setupUI() {
-    // Setup the Toolbar
-    setSupportActionBar(binding.topAppBar)
-    supportActionBar?.setDisplayHomeAsUpEnabled(true)
-    binding.topAppBar.setNavigationOnClickListener {
-        onBackPressedDispatcher.onBackPressed()
-    }
-
-    // Setup RecyclerView
-    translationAdapter = TranslationAdapter()
-    binding.transcriptLog.layoutManager = LinearLayoutManager(this)
-    binding.transcriptLog.adapter = translationAdapter
-
-    // --- NEW AND MODIFIED CLICK LISTENERS ---
-
-    // 1. New user settings icon
-    binding.settingsBtn.setOnClickListener {
-        val userSettingsDialog = UserSettingsDialogFragment()
-        userSettingsDialog.show(supportFragmentManager, "UserSettingsDialog")
-    }
-
-    // 2. Repurposed debug settings button
-    binding.debugSettingsBtn.setOnClickListener {
-        // This now opens your ORIGINAL developer settings dialog
-        val devSettingsDialog = SettingsDialog(this, getSharedPreferences("BWCTransPrefs", MODE_PRIVATE), models)
-        devSettingsDialog.setOnDismissListener {
-            Log.d(TAG, "Developer SettingsDialog dismissed.")
-            loadPreferences()
-            // updateDisplayInfo() // This view is gone, so this is not needed.
-            // You might want to show a Toast that settings will be applied on next connection.
-            if (isSessionActive) {
-                Toast.makeText(this, "Dev settings saved. Reconnect to apply.", Toast.LENGTH_LONG).show()
-            }
+    private fun setupUI() {
+        setSupportActionBar(binding.topAppBar)
+        supportActionBar?.setDisplayHomeAsUpEnabled(true)
+        binding.topAppBar.setNavigationOnClickListener {
+            onBackPressedDispatcher.onBackPressed()
         }
-        devSettingsDialog.show()
-    }
-    // NEW Click Listeners
-    binding.micBtn.setOnClickListener {
-        Log.d(TAG, "Mic button clicked.")
-        handleMasterButton() // Your existing logic for this should still work
-    }
 
-   // 4. History button (placeholder)
-    binding.historyBtn.setOnClickListener {
-        Toast.makeText(this, "History view coming soon!", Toast.LENGTH_SHORT).show()
-    }
+        translationAdapter = TranslationAdapter()
+        binding.transcriptLog.layoutManager = LinearLayoutManager(this)
+        binding.transcriptLog.adapter = translationAdapter
 
-    updateUI()
-    Log.d(TAG, "setupUI: All new UI components initialized.")
-}
+        binding.settingsBtn.setOnClickListener {
+            val userSettingsDialog = UserSettingsDialogFragment()
+            userSettingsDialog.show(supportFragmentManager, "UserSettingsDialog")
+        }
+
+        binding.debugSettingsBtn.setOnClickListener {
+            val devSettingsDialog = SettingsDialog(this, getSharedPreferences("BWCTransPrefs", MODE_PRIVATE), models)
+            devSettingsDialog.setOnDismissListener {
+                Log.d(TAG, "Developer SettingsDialog dismissed.")
+                loadPreferences()
+                if (isSessionActive) {
+                    Toast.makeText(this, "Dev settings saved. Reconnect to apply.", Toast.LENGTH_LONG).show()
+                }
+            }
+            devSettingsDialog.show()
+        }
+
+        binding.micBtn.setOnClickListener {
+            Log.d(TAG, "Mic button clicked.")
+            handleMasterButton()
+        }
+
+        binding.historyBtn.setOnClickListener {
+            Toast.makeText(this, "History view coming soon!", Toast.LENGTH_SHORT).show()
+        }
+
+        updateUI()
+        Log.d(TAG, "setupUI: All new UI components initialized.")
+    }
 
     private fun initializeComponentsDependentOnAudio() {
         if (!::audioHandler.isInitialized) {
@@ -213,7 +200,7 @@ private fun setupUI() {
             onOpen = { mainScope.launch {
                 Log.i(TAG, "WebSocket onOpen callback received.")
                 isSessionActive = true
-                reconnectAttempts = 0 // Reset on successful connection
+                reconnectAttempts = 0
                 updateStatus("Connected, configuring server...")
                 updateUI()
             } },
@@ -223,18 +210,17 @@ private fun setupUI() {
                 teardownSession(reconnect = true)
             } },
             onFailure = { t, response -> mainScope.launch {
-    Log.e(TAG, "WebSocket onFailure callback received.", t)
-    var errorMessage = "Connection error: ${t.message}"
-    if (response != null) {
-        errorMessage += "\n(Code: ${response.code})"
-        if (response.code == 404) {
-            errorMessage = "Error: The server endpoint was not found (404). Please check the API version and key."
-        }
-    }
-    showError(errorMessage)
-    // The fix is to tell the session to attempt a reconnect.
-    teardownSession(reconnect = true)
-} },
+                Log.e(TAG, "WebSocket onFailure callback received.", t)
+                var errorMessage = "Connection error: ${t.message}"
+                if (response != null) {
+                    errorMessage += "\n(Code: ${response.code})"
+                    if (response.code == 404) {
+                        errorMessage = "Error: The server endpoint was not found (404). Please check the API version and key."
+                    }
+                }
+                showError(errorMessage)
+                teardownSession(reconnect = true)
+            } },
             onSetupComplete = { mainScope.launch {
                 Log.i(TAG, "WebSocket onSetupComplete callback received.")
                 isServerReady = true
@@ -265,27 +251,11 @@ private fun setupUI() {
         }
         updateUI()
     }
-
-
-    private fun showDebugDialog() {
-        val dialog = SettingsDialog(this, getSharedPreferences("BWCTransPrefs", MODE_PRIVATE), models)
-        dialog.setOnDismissListener {
-            Log.d(TAG, "SettingsDialog dismissed.")
-            loadPreferences()
-            updateDisplayInfo()
-            if (isSessionActive) {
-                Toast.makeText(this, "Settings saved. Please Disconnect and reconnect to apply.", Toast.LENGTH_LONG).show()
-            }
-        }
-        dialog.show()
-    }
     
+    // Moved the misplaced function inside the class
     private fun showSettingsDialog() {
         val userSettingsDialog = UserSettingsDialogFragment()
-    userSettingsDialog.show(supportFragmentManager, "UserSettingsDialog")
-            }
-        }
-        dialog.show()
+        userSettingsDialog.show(supportFragmentManager, "UserSettingsDialog")
     }
 
     private fun getVadSensitivity(): Int {
@@ -299,7 +269,6 @@ private fun setupUI() {
             Log.w(TAG, "connect: Already connected or connecting.")
             return
         }
-        // Reset reconnect attempts on a new manual connection
         reconnectAttempts = 0
         Log.i(TAG, "connect: Attempting to establish WebSocket connection.")
         updateStatus("Connecting...")
@@ -312,7 +281,6 @@ private fun setupUI() {
         try {
             val response = gson.fromJson(text, ServerResponse::class.java)
 
-            // --- Session and Connection Management ---
             response.sessionResumptionUpdate?.let {
                 if (it.resumable == true && it.newHandle != null) {
                     sessionHandle = it.newHandle
@@ -325,7 +293,6 @@ private fun setupUI() {
                 showError("Connection closing in $it. Will reconnect.")
             }
 
-            // --- Transcript and Audio Processing ---
             val outputText = response.outputTranscription?.text ?: response.serverContent?.outputTranscription?.text
             if (outputText != null) {
                 outputTranscriptBuffer.append(outputText)
@@ -348,8 +315,6 @@ private fun setupUI() {
                     audioPlayer.playAudio(it)
                 }
             }
-
-            // --- REMOVED: The turnComplete block is no longer needed for full-duplex ---
 
         } catch (e: Exception) {
             Log.e(TAG, "Error processing message: $text", e)
@@ -402,30 +367,24 @@ private fun setupUI() {
             } else if (reconnect) {
                 Log.e(TAG, "Max reconnect attempts reached. Will not reconnect.")
                 showError("Could not establish a connection. Please try again later.")
-                reconnectAttempts = 0 // Reset for next manual connection
+                reconnectAttempts = 0
             }
         }
     }
 
-private fun updateUI() {
-    // The FloatingActionButton now shows a stop icon when listening
-    binding.micBtn.setImageResource(if (isListening) R.drawable.ic_stop else R.drawable.ic_mic)
+    private fun updateUI() {
+        binding.micBtn.setImageResource(if (isListening) R.drawable.ic_stop else R.drawable.ic_mic)
 
-    binding.statusText.text = when {
-        !isSessionActive -> "Status: Disconnected"
-        !isServerReady -> "Status: Connecting..."
-        isListening -> "Listening..."
-        else -> "" // Show no status text when ready
+        binding.statusText.text = when {
+            !isSessionActive -> "Status: Disconnected"
+            !isServerReady -> "Status: Connecting..."
+            isListening -> "Listening..."
+            else -> ""
+        }
+        binding.infoText.visibility = if (translationAdapter.itemCount == 0) View.VISIBLE else View.GONE
+        binding.debugSettingsBtn.isEnabled = !isSessionActive
+        binding.micBtn.isEnabled = (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED)
     }
-  // Only show "Tap the mic..." if there are no translations yet
-    binding.infoText.visibility = if (translationAdapter.itemCount == 0) View.VISIBLE else View.GONE
-    
-    // The debug button should be disabled when a session is active
-    binding.debugSettingsBtn.isEnabled = !isSessionActive
-
-    // The main mic button should only be enabled when permission is granted and the server is ready (or disconnected)
-    binding.micBtn.isEnabled = (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED)
-}
 
     private fun updateStatus(message: String) {
         binding.statusText.text = "Status: $message"
@@ -447,16 +406,7 @@ private fun updateUI() {
             requestPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
         }
     }
-
-    private fun updateDisplayInfo() {
-        val prefs = getSharedPreferences("BWCTransPrefs", MODE_PRIVATE)
-        val currentApiVersion = apiVersions.firstOrNull { it.value == prefs.getString("api_version", null) } ?: apiVersions.firstOrNull()
-        val currentApiKey = apiKeys.firstOrNull { it.value == prefs.getString("api_key", null) } ?: apiKeys.firstOrNull()
-        val infoText = "Model: $selectedModel | Version: ${currentApiVersion?.displayName ?: "N/A"} | Key: ${currentApiKey?.displayName ?: "N/A"}"
-        binding.configDisplay.text = infoText
-        Log.d(TAG, "updateDisplayInfo: $infoText")
-    }
-
+    
     override fun onDestroy() {
         super.onDestroy()
         Log.w(TAG, "onDestroy: Activity is being destroyed.")
