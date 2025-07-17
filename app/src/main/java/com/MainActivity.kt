@@ -137,31 +137,55 @@ class MainActivity : AppCompatActivity() {
     }
 
 private fun setupUI() {
-    // Setup the new Toolbar
+    // Setup the Toolbar
     setSupportActionBar(binding.topAppBar)
-    supportActionBar?.setDisplayHomeAsUpEnabled(true) // Shows back arrow
+    supportActionBar?.setDisplayHomeAsUpEnabled(true)
     binding.topAppBar.setNavigationOnClickListener {
-        onBackPressed() // Or your custom navigation logic
+        onBackPressedDispatcher.onBackPressed()
     }
+
     // Setup RecyclerView
     translationAdapter = TranslationAdapter()
     binding.transcriptLog.layoutManager = LinearLayoutManager(this)
     binding.transcriptLog.adapter = translationAdapter
 
+    // --- NEW AND MODIFIED CLICK LISTENERS ---
+
+    // 1. New user settings icon
+    binding.settingsBtn.setOnClickListener {
+        val userSettingsDialog = UserSettingsDialogFragment()
+        userSettingsDialog.show(supportFragmentManager, "UserSettingsDialog")
+    }
+
+    // 2. Repurposed debug settings button
+    binding.debugSettingsBtn.setOnClickListener {
+        // This now opens your ORIGINAL developer settings dialog
+        val devSettingsDialog = SettingsDialog(this, getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE), models)
+        devSettingsDialog.setOnDismissListener {
+            Log.d(TAG, "Developer SettingsDialog dismissed.")
+            loadPreferences()
+            // updateDisplayInfo() // This view is gone, so this is not needed.
+            // You might want to show a Toast that settings will be applied on next connection.
+            if (isSessionActive) {
+                Toast.makeText(this, "Dev settings saved. Reconnect to apply.", Toast.LENGTH_LONG).show()
+            }
+        }
+        devSettingsDialog.show()
+    }
     // NEW Click Listeners
     binding.micBtn.setOnClickListener {
         Log.d(TAG, "Mic button clicked.")
         handleMasterButton() // Your existing logic for this should still work
     }
 
-    binding.settingsBtn.setOnClickListener {
-        Log.d(TAG, "Settings icon clicked.")
-        // The logic for the disconnect button is gone, this now ONLY shows settings.
-        showSettingsDialog()
+   // 4. History button (placeholder)
+    binding.historyBtn.setOnClickListener {
+        Toast.makeText(this, "History view coming soon!", Toast.LENGTH_SHORT).show()
     }
-       updateUI()
-    Log.d(TAG, "setupUI: New UI components initialized.")
-    }
+
+    updateUI()
+    Log.d(TAG, "setupUI: All new UI components initialized.")
+}
 
     private fun initializeComponentsDependentOnAudio() {
         if (!::audioHandler.isInitialized) {
@@ -242,15 +266,6 @@ private fun setupUI() {
         updateUI()
     }
 
-    private fun handleSettingsDisconnectButton() {
-        if (isSessionActive) {
-            Log.d(TAG, "handleSettingsDisconnectButton: Disconnecting session.")
-            teardownSession()
-        } else {
-            Log.d(TAG, "handleSettingsDisconnectButton: Showing settings dialog.")
-            showSettingsDialog()
-        }
-    }
 
     private fun showDebugDialog() {
         val dialog = SettingsDialog(this, getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE), models)
@@ -393,22 +408,24 @@ private fun setupUI() {
     }
 
 private fun updateUI() {
-    // Control the FloatingActionButton's appearance
-    binding.micBtn.setImageResource(if (isListening) R.drawable.ic_stop else R.drawable.ic_mic) // You'll need ic_stop
+    // The FloatingActionButton now shows a stop icon when listening
+    binding.micBtn.setImageResource(if (isListening) R.drawable.ic_stop else R.drawable.ic_mic)
 
-    // Update status text at the bottom
     binding.statusText.text = when {
         !isSessionActive -> "Status: Disconnected"
         !isServerReady -> "Status: Connecting..."
-        isListening -> "Status: Listening..."
-        else -> "Status: Ready"
+        isListening -> "Listening..."
+        else -> "" // Show no status text when ready
     }
-    
+  // Only show "Tap the mic..." if there are no translations yet
     binding.infoText.visibility = if (translationAdapter.itemCount == 0) View.VISIBLE else View.GONE
     
+    // The debug button should be disabled when a session is active
+    binding.debugSettingsBtn.isEnabled = !isSessionActive
+
+    // The main mic button should only be enabled when permission is granted and the server is ready (or disconnected)
     binding.micBtn.isEnabled = (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED)
 }
-
 
     private fun updateStatus(message: String) {
         binding.statusText.text = "Status: $message"
