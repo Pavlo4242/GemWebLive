@@ -1,5 +1,6 @@
 package com.BWCTrans
 
+// --- IMPORTS ---
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Bundle
@@ -18,7 +19,8 @@ import kotlinx.coroutines.*
 import okhttp3.Response
 import java.lang.StringBuilder
 
-// (Data classes remain the same)
+
+// --- DATA CLASSES ---
 data class ServerResponse(
     @SerializedName("serverContent") val serverContent: ServerContent?,
     @SerializedName("inputTranscription") val inputTranscription: Transcription?,
@@ -44,6 +46,12 @@ data class GoAway(@SerializedName("timeLeft") val timeLeft: String?)
 
 class MainActivity : AppCompatActivity() {
 
+    // --- COMPANION OBJECT ---
+    companion object {
+        private const val TAG = "MainActivity"
+    }
+
+    // --- PROPERTIES & VIEWS ---
     private lateinit var binding: ActivityMainBinding
     private lateinit var audioHandler: AudioHandler
     private var webSocketClient: WebSocketClient? = null
@@ -51,15 +59,16 @@ class MainActivity : AppCompatActivity() {
     private lateinit var audioPlayer: AudioPlayer
     private val mainScope = CoroutineScope(Dispatchers.Main)
     private val gson = Gson()
+    private lateinit var requestPermissionLauncher: ActivityResultLauncher<String>
 
-    // --- State Management ---
+
+    // --- STATE & CONFIGURATION ---
     private var sessionHandle: String? = null
     private val outputTranscriptBuffer = StringBuilder()
     @Volatile private var isListening = false
     @Volatile private var isSessionActive = false
     @Volatile private var isServerReady = false
 
-    // --- Configuration ---
     private val models = listOf("gemini-2.5-flash-preview-native-audio-dialog", "gemini-2.0-flash-live-001", "gemini-2.5-flash-live-preview")
     private var selectedModel: String = models[0]
     private var apiVersions: List<ApiVersion> = emptyList()
@@ -67,16 +76,11 @@ class MainActivity : AppCompatActivity() {
     private var selectedApiVersionObject: ApiVersion? = null
     private var selectedApiKeyInfo: ApiKeyInfo? = null
 
-    private lateinit var requestPermissionLauncher: ActivityResultLauncher<String>
-
-    // --- Reconnection Logic ---
     private var reconnectAttempts = 0
     private val maxReconnectAttempts = 5
 
-    companion object {
-        private const val TAG = "MainActivity"
-    }
 
+    // --- ACTIVITY LIFECYCLE ---
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
@@ -102,37 +106,16 @@ class MainActivity : AppCompatActivity() {
         setupUI()
     }
 
-    private fun loadPreferences() {
-        val prefs = getSharedPreferences("BWCTransPrefs", MODE_PRIVATE)
-        selectedModel = prefs.getString("selected_model", models[0]) ?: models[0]
-        sessionHandle = prefs.getString("session_handle", null)
-        Log.d(TAG, "loadPreferences: Loaded model '$selectedModel' and session handle '$sessionHandle'")
+    override fun onDestroy() {
+        super.onDestroy()
+        Log.w(TAG, "onDestroy: Activity is being destroyed.")
+        audioPlayer.release()
+        teardownSession()
+        mainScope.cancel()
     }
 
-    private fun loadApiVersionsFromResources() {
-        val rawApiVersions = resources.getStringArray(R.array.api_versions)
-        val parsedList = mutableListOf<ApiVersion>()
-        for (itemString in rawApiVersions) {
-            val parts = itemString.split("|", limit = 2)
-            parsedList.add(if (parts.size == 2) ApiVersion(parts[0].trim(), parts[1].trim()) else ApiVersion(itemString.trim(), itemString.trim()))
-        }
-        apiVersions = parsedList
-        selectedApiVersionObject = parsedList.firstOrNull { it.value == getSharedPreferences("BWCTransPrefs", MODE_PRIVATE).getString("api_version", null) } ?: parsedList.firstOrNull()
-        Log.d(TAG, "loadApiVersionsFromResources: Loaded ${apiVersions.size} API versions. Selected: ${selectedApiVersionObject?.displayName}")
-    }
 
-    private fun loadApiKeysFromResources() {
-        val rawApiKeys = resources.getStringArray(R.array.api_keys)
-        val parsedList = mutableListOf<ApiKeyInfo>()
-        for (itemString in rawApiKeys) {
-            val parts = itemString.split(":", limit = 2)
-            if (parts.size == 2) parsedList.add(ApiKeyInfo(parts[0].trim(), parts[1].trim()))
-        }
-        apiKeys = parsedList
-        selectedApiKeyInfo = parsedList.firstOrNull { it.value == getSharedPreferences("BWCTransPrefs", MODE_PRIVATE).getString("api_key", null) } ?: apiKeys.firstOrNull()
-        Log.d(TAG, "loadApiKeysFromResources: Loaded ${apiKeys.size} API keys. Selected: ${selectedApiKeyInfo?.displayName}")
-    }
-
+    // --- INITIALIZATION & SETUP ---
     private fun setupUI() {
         setSupportActionBar(binding.topAppBar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
@@ -149,7 +132,7 @@ class MainActivity : AppCompatActivity() {
             userSettingsDialog.show(supportFragmentManager, "UserSettingsDialog")
         }
 
-         binding.debugSettingsBtn.setOnClickListener {
+        binding.debugSettingsBtn.setOnClickListener {
             // This now opens your ORIGINAL developer settings dialog
             val devSettingsDialog = SettingsDialog(this, this, getSharedPreferences("BWCTransPrefs", MODE_PRIVATE), models)
             devSettingsDialog.setOnDismissListener {
@@ -185,36 +168,35 @@ class MainActivity : AppCompatActivity() {
         prepareNewClient()
     }
 
-    fun requestAudioPermission() {
-        Log.i(TAG, "requestAudioPermission: Explicitly requesting audio permission.")
-        requestPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+    private fun loadPreferences() {
+        val prefs = getSharedPreferences("BWCTransPrefs", MODE_PRIVATE)
+        selectedModel = prefs.getString("selected_model", models[0]) ?: models[0]
+        sessionHandle = prefs.getString("session_handle", null)
+        Log.d(TAG, "loadPreferences: Loaded model '$selectedModel' and session handle '$sessionHandle'")
     }
 
-    override fun onRequestPermission() {
-        requestAudioPermission()
-    }
-
-    override fun onForceConnect() {
-        Log.i(TAG, "onForceConnect: Forcing reconnection.")
-        Toast.makeText(this, "Forcing reconnection...", Toast.LENGTH_SHORT).show()
-        teardownSession()
-        // Add a small delay before connecting to ensure resources are released
-        mainScope.launch {
-            delay(500)
-            connect()
+    private fun loadApiVersionsFromResources() {
+        val rawApiVersions = resources.getStringArray(R.array.api_versions)
+        val parsedList = mutableListOf<ApiVersion>()
+        for (itemString in rawApiVersions) {
+            val parts = itemString.split("|", limit = 2)
+            parsedList.add(if (parts.size == 2) ApiVersion(parts[0].trim(), parts[1].trim()) else ApiVersion(itemString.trim(), itemString.trim()))
         }
+        apiVersions = parsedList
+        selectedApiVersionObject = parsedList.firstOrNull { it.value == getSharedPreferences("BWCTransPrefs", MODE_PRIVATE).getString("api_version", null) } ?: parsedList.firstOrNull()
+        Log.d(TAG, "loadApiVersionsFromResources: Loaded ${apiVersions.size} API versions. Selected: ${selectedApiVersionObject?.displayName}")
     }
 
-    private fun checkPermissions() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
-            Log.i(TAG, "checkPermissions: RECORD_AUDIO permission already granted.")
-            initializeComponentsDependentOnAudio()
-        } else {
-            Log.i(TAG, "checkPermissions: Requesting RECORD_AUDIO permission.")
-            // --- MODIFIED: Show a more informative initial Toast ---
-            Toast.makeText(this, "Microphone permission is needed for the translator.", Toast.LENGTH_LONG).show()
-            requestAudioPermission()
+    private fun loadApiKeysFromResources() {
+        val rawApiKeys = resources.getStringArray(R.array.api_keys)
+        val parsedList = mutableListOf<ApiKeyInfo>()
+        for (itemString in rawApiKeys) {
+            val parts = itemString.split(":", limit = 2)
+            if (parts.size == 2) parsedList.add(ApiKeyInfo(parts[0].trim(), parts[1].trim()))
         }
+        apiKeys = parsedList
+        selectedApiKeyInfo = parsedList.firstOrNull { it.value == getSharedPreferences("BWCTransPrefs", MODE_PRIVATE).getString("api_key", null) } ?: apiKeys.firstOrNull()
+        Log.d(TAG, "loadApiKeysFromResources: Loaded ${apiKeys.size} API keys. Selected: ${selectedApiKeyInfo?.displayName}")
     }
 
     private fun prepareNewClient() {
@@ -264,6 +246,27 @@ class MainActivity : AppCompatActivity() {
         Log.i(TAG, "New WebSocketClient prepared.")
     }
 
+
+    // --- PERMISSION HANDLING ---
+    private fun checkPermissions() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+            Log.i(TAG, "checkPermissions: RECORD_AUDIO permission already granted.")
+            initializeComponentsDependentOnAudio()
+        } else {
+            Log.i(TAG, "checkPermissions: Requesting RECORD_AUDIO permission.")
+            // --- MODIFIED: Show a more informative initial Toast ---
+            Toast.makeText(this, "Microphone permission is needed for the translator.", Toast.LENGTH_LONG).show()
+            requestAudioPermission()
+        }
+    }
+
+    fun requestAudioPermission() {
+        Log.i(TAG, "requestAudioPermission: Explicitly requesting audio permission.")
+        requestPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+    }
+
+
+    // --- UI & EVENT HANDLERS ---
     private fun handleMasterButton() {
         if (!isServerReady && !isSessionActive) {
             Log.d(TAG, "handleMasterButton: No active session, connecting.")
@@ -284,19 +287,14 @@ class MainActivity : AppCompatActivity() {
         }
         updateUI()
     }
-    
-    // Moved the misplaced function inside the class
+
     private fun showSettingsDialog() {
         val userSettingsDialog = UserSettingsDialogFragment()
         userSettingsDialog.show(supportFragmentManager, "UserSettingsDialog")
     }
 
-    private fun getVadSensitivity(): Int {
-        val sensitivity = getSharedPreferences("BWCTransPrefs", MODE_PRIVATE).getInt("vad_sensitivity_ms", 800)
-        Log.d(TAG, "getVadSensitivity: VAD sensitivity is $sensitivity ms.")
-        return sensitivity
-    }
 
+    // --- CORE WEBSOCKET & AUDIO LOGIC ---
     private fun connect() {
         if (isSessionActive) {
             Log.w(TAG, "connect: Already connected or connecting.")
@@ -307,6 +305,33 @@ class MainActivity : AppCompatActivity() {
         updateStatus("Connecting...")
         updateUI()
         webSocketClient?.connect()
+    }
+
+    private fun teardownSession(reconnect: Boolean = false) {
+        if (!isSessionActive) return
+        Log.w(TAG, "teardownSession: Tearing down session. Reconnect: $reconnect")
+        isListening = false
+        isSessionActive = false
+        isServerReady = false
+        if (::audioHandler.isInitialized) audioHandler.stopRecording()
+        webSocketClient?.disconnect()
+        mainScope.launch {
+            if (!reconnect) updateStatus("Disconnected")
+            updateUI()
+            prepareNewClient()
+            if (reconnect && reconnectAttempts < maxReconnectAttempts) {
+                reconnectAttempts++
+                val delayMillis = (1000 * Math.pow(2.0, reconnectAttempts.toDouble())).toLong()
+                Log.i(TAG, "Attempting to reconnect in ${delayMillis / 1000} seconds. (Attempt $reconnectAttempts)")
+                updateStatus("Connection lost. Reconnecting in ${delayMillis / 1000}s...")
+                delay(delayMillis)
+                connect()
+            } else if (reconnect) {
+                Log.e(TAG, "Max reconnect attempts reached. Will not reconnect.")
+                showError("Could not establish a connection. Please try again later.")
+                reconnectAttempts = 0
+            }
+        }
     }
 
     private fun processServerMessage(text: String) {
@@ -378,31 +403,29 @@ class MainActivity : AppCompatActivity() {
         updateStatus("Ready to listen")
     }
 
-    private fun teardownSession(reconnect: Boolean = false) {
-        if (!isSessionActive) return
-        Log.w(TAG, "teardownSession: Tearing down session. Reconnect: $reconnect")
-        isListening = false
-        isSessionActive = false
-        isServerReady = false
-        if (::audioHandler.isInitialized) audioHandler.stopRecording()
-        webSocketClient?.disconnect()
+
+    // --- DIALOG INTERFACE IMPLEMENTATIONS ---
+    override fun onRequestPermission() {
+        requestAudioPermission()
+    }
+
+    override fun onForceConnect() {
+        Log.i(TAG, "onForceConnect: Forcing reconnection.")
+        Toast.makeText(this, "Forcing reconnection...", Toast.LENGTH_SHORT).show()
+        teardownSession()
+        // Add a small delay before connecting to ensure resources are released
         mainScope.launch {
-            if (!reconnect) updateStatus("Disconnected")
-            updateUI()
-            prepareNewClient()
-            if (reconnect && reconnectAttempts < maxReconnectAttempts) {
-                reconnectAttempts++
-                val delayMillis = (1000 * Math.pow(2.0, reconnectAttempts.toDouble())).toLong()
-                Log.i(TAG, "Attempting to reconnect in ${delayMillis / 1000} seconds. (Attempt $reconnectAttempts)")
-                updateStatus("Connection lost. Reconnecting in ${delayMillis / 1000}s...")
-                delay(delayMillis)
-                connect()
-            } else if (reconnect) {
-                Log.e(TAG, "Max reconnect attempts reached. Will not reconnect.")
-                showError("Could not establish a connection. Please try again later.")
-                reconnectAttempts = 0
-            }
+            delay(500)
+            connect()
         }
+    }
+
+
+    // --- HELPER & UTILITY FUNCTIONS ---
+    private fun getVadSensitivity(): Int {
+        val sensitivity = getSharedPreferences("BWCTransPrefs", MODE_PRIVATE).getInt("vad_sensitivity_ms", 800)
+        Log.d(TAG, "getVadSensitivity: VAD sensitivity is $sensitivity ms.")
+        return sensitivity
     }
 
     private fun updateUI() {
@@ -428,23 +451,5 @@ class MainActivity : AppCompatActivity() {
         Toast.makeText(this, message, Toast.LENGTH_LONG).show()
         updateStatus("Alert: $message")
         Log.e(TAG, "showError: $message")
-    }
-
-    private fun checkPermissions() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
-            Log.i(TAG, "checkPermissions: RECORD_AUDIO permission already granted.")
-            initializeComponentsDependentOnAudio()
-        } else {
-            Log.i(TAG, "checkPermissions: Requesting RECORD_AUDIO permission.")
-            requestPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-        }
-    }
-    
-    override fun onDestroy() {
-        super.onDestroy()
-        Log.w(TAG, "onDestroy: Activity is being destroyed.")
-        audioPlayer.release()
-        teardownSession()
-        mainScope.cancel()
     }
 }
