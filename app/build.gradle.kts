@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace = "com.gemweblive"
+    namespace = "com.BWCTrans"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.gemweblive"
+        applicationId = "com.BWCTrans"
         minSdk = 26
         targetSdk = 34
         versionCode = 1
@@ -39,6 +39,7 @@ android {
         // We are enabling compose AND viewBinding, as your project uses both.
         compose = true
         viewBinding = true
+        dataBinding = true
     }
     composeOptions {
         // This version is compatible with Kotlin 1.9.22
@@ -49,7 +50,6 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
-}
 
 dependencies {
     // Core & UI
@@ -85,3 +85,11 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-test-manifest")
     
 }
+}
+
+android.applicationVariants.all {
+    outputs.all {
+        val outputImpl = this as com.android.build.gradle.internal.api.BaseVariantOutputImpl
+        outputImpl.outputFileName = "BWCTrans-${name}.apk"
+}
+} 
