@@ -3,87 +3,78 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:padding="16dp">
-
-    <RelativeLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="24dp">
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Settings"
-            android:textSize="20sp"
-            android:textStyle="bold"
-            android:layout_centerVertical="true"
-            android:layout_alignParentStart="true" />
-
-        <ImageView
-            android:id="@+id/closeBtn"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:src="@drawable/ic_close" android:layout_alignParentEnd="true"
-            android:layout_centerVertical="true"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:padding="8dp"/>
-    </RelativeLayout>
+    android:padding="24dp">
 
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Text size"
-        android:layout_marginBottom="8dp"/>
+        android:text="Developer Settings"
+        android:textAppearance="?attr/textAppearanceTitleLarge"
+        android:layout_marginBottom="24dp"/>
 
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="VAD Sensitivity"
+        android:textAppearance="?attr/textAppearanceLabelLarge"/>
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:gravity="center_vertical"
-        android:orientation="horizontal">
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="A"
-            android:textSize="14sp"/>
-
+        android:gravity="center_vertical">
         <SeekBar
-            android:id="@+id/textSizeSeekBar"
+            android:id="@+id/vadSensitivity"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:layout_marginStart="8dp"
-            android:layout_marginEnd="8dp"
-            android:max="100"
-            android:progress="50"/>
-
+            android:max="2000"
+            android:progress="800"/>
         <TextView
-            android:layout_width="wrap_content"
+            android:id="@+id/vadValue"
+            android:layout_width="60dp"
             android:layout_height="wrap_content"
-            android:text="A"
-            android:textSize="22sp"/>
-
+            android:text="800 ms"
+            android:gravity="end"/>
     </LinearLayout>
 
-    <com.google.android.material.switchmaterial.SwitchMaterial
-        android:id="@+id/autoPlaybackSwitch"
-        android:layout_width="match_parent"
+    <TextView
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="24dp"
-        android:layout_marginBottom="24dp"
-        android:checked="true"
-        android:text="Auto playback"
-        android:textSize="16sp"/>
+        android:text="Model"
+        android:layout_marginTop="16dp"
+        android:textAppearance="?attr/textAppearanceLabelLarge"/>
+    <Spinner
+        android:id="@+id/modelSpinnerSettings"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"/>
 
     <TextView
-        android:id="@+id/sendFeedbackBtn"
-        android:layout_width="match_parent"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Send feedback"
-        android:textSize="16sp"
-        android:paddingTop="16dp"
-        android:paddingBottom="16dp"
-        android:clickable="true"
-        android:focusable="true"
-        android:background="?attr/selectableItemBackground"/>
+        android:text="API Version"
+        android:layout_marginTop="16dp"
+        android:textAppearance="?attr/textAppearanceLabelLarge"/>
+    <Spinner
+        android:id="@+id/apiVersionSpinner"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="API Key"
+        android:layout_marginTop="16dp"
+        android:textAppearance="?attr/textAppearanceLabelLarge"/>
+    <Spinner
+        android:id="@+id/apiKeySpinner"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"/>
+
+    <Button
+        android:id="@+id/saveSettingsBtn"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="end"
+        android:layout_marginTop="24dp"
+        android:text="Save"/>
+
 </LinearLayout>
