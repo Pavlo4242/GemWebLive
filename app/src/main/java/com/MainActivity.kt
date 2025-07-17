@@ -18,6 +18,8 @@ import com.google.gson.annotations.SerializedName
 import kotlinx.coroutines.*
 import okhttp3.Response
 import java.lang.StringBuilder
+import com.BWCTrans.SettingsDialog.DevSettingsListener
+import com.BWCTrans.UserSettingsDialogFragment.UserSettingsListener
 
 
 // --- DATA CLASSES ---
@@ -44,7 +46,7 @@ data class SetupComplete(val dummy: String? = null)
 data class SessionResumptionUpdate(@SerializedName("newHandle") val newHandle: String?, @SerializedName("resumable") val resumable: Boolean?)
 data class GoAway(@SerializedName("timeLeft") val timeLeft: String?)
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : AppCompatActivity(), DevSettingsListener, UserSettingsListener {
 
     // --- COMPANION OBJECT ---
     companion object {
@@ -260,7 +262,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    fun requestAudioPermission() {
+    override fun onRequestPermission() {
         Log.i(TAG, "requestAudioPermission: Explicitly requesting audio permission.")
         requestPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
     }
@@ -405,10 +407,6 @@ class MainActivity : AppCompatActivity() {
 
 
     // --- DIALOG INTERFACE IMPLEMENTATIONS ---
-    override fun onRequestPermission() {
-        requestAudioPermission()
-    }
-
     override fun onForceConnect() {
         Log.i(TAG, "onForceConnect: Forcing reconnection.")
         Toast.makeText(this, "Forcing reconnection...", Toast.LENGTH_SHORT).show()
