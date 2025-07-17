@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">BWCLIVE</string>
+    <string name="app_name">BWCTrans</string>
 
     <string-array name="api_versions">
         <item>v1alpha</item>
