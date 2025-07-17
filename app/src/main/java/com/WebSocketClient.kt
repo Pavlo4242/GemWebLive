@@ -1,5 +1,5 @@
 //repair added logging//
-package com.gemweblive
+package com.BWCTrans
 
 import android.content.Context
 import android.util.Base64

@@ -1,9 +1,9 @@
-package com.gemweblive
+package com.BWCTrans
 
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
-import com.gemweblive.databinding.ItemTranslationBinding
+import com.BWCTrans.databinding.ItemTranslationBinding
 
 class TranslationAdapter : RecyclerView.Adapter<TranslationAdapter.TranslationViewHolder>() {
 

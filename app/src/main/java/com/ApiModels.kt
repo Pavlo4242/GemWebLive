@@ -1,5 +1,5 @@
-// app/src/main/java/com/gemweblive/ApiModels.kt
-package com.gemweblive
+// ApiModels.kt
+package com.BWCTrans
 
 // Data class for API Versions (e.g., "v1alpha (Preview)" and "v1alpha")
 data class ApiVersion(

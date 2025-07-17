@@ -1,5 +1,5 @@
-// app/src/main/java/com/gemweblive/SettingsDialog.kt
-package com.gemweblive
+// app/src/main/java/com/BWCTrans/SettingsDialog.kt
+package com.BWCTrans
 
 import android.app.Dialog
 import android.content.Context
@@ -11,10 +11,10 @@ import android.view.View
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.SeekBar
-import com.gemweblive.databinding.DialogSettingsBinding
+import com.BWCTrans.databinding.DialogSettingsBinding
 
-import com.gemweblive.ApiVersion
-import com.gemweblive.ApiKeyInfo
+import com.BWCTrans.ApiVersion
+import com.BWCTrans.ApiKeyInfo
 
 
 class SettingsDialog(

@@ -1,5 +1,5 @@
-//repaired added logging//
-package com.gemweblive
+//MainActivity.kt
+package com.BWCTrans
 
 import android.Manifest
 import android.content.pm.PackageManager
@@ -12,7 +12,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.gemweblive.databinding.ActivityMainBinding
+import com.BWCTrans.databinding.ActivityMainBinding
 import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
 import kotlinx.coroutines.*
@@ -106,7 +106,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun loadPreferences() {
-        val prefs = getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE)
+        val prefs = getSharedPreferences("BWCTransPrefs", MODE_PRIVATE)
         selectedModel = prefs.getString("selected_model", models[0]) ?: models[0]
         sessionHandle = prefs.getString("session_handle", null)
         Log.d(TAG, "loadPreferences: Loaded model '$selectedModel' and session handle '$sessionHandle'")
@@ -120,7 +120,7 @@ class MainActivity : AppCompatActivity() {
             parsedList.add(if (parts.size == 2) ApiVersion(parts[0].trim(), parts[1].trim()) else ApiVersion(itemString.trim(), itemString.trim()))
         }
         apiVersions = parsedList
-        selectedApiVersionObject = parsedList.firstOrNull { it.value == getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE).getString("api_version", null) } ?: parsedList.firstOrNull()
+        selectedApiVersionObject = parsedList.firstOrNull { it.value == getSharedPreferences("BWCTransPrefs", MODE_PRIVATE).getString("api_version", null) } ?: parsedList.firstOrNull()
         Log.d(TAG, "loadApiVersionsFromResources: Loaded ${apiVersions.size} API versions. Selected: ${selectedApiVersionObject?.displayName}")
     }
 
@@ -132,7 +132,7 @@ class MainActivity : AppCompatActivity() {
             if (parts.size == 2) parsedList.add(ApiKeyInfo(parts[0].trim(), parts[1].trim()))
         }
         apiKeys = parsedList
-        selectedApiKeyInfo = parsedList.firstOrNull { it.value == getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE).getString("api_key", null) } ?: apiKeys.firstOrNull()
+        selectedApiKeyInfo = parsedList.firstOrNull { it.value == getSharedPreferences("BWCTransPrefs", MODE_PRIVATE).getString("api_key", null) } ?: apiKeys.firstOrNull()
         Log.d(TAG, "loadApiKeysFromResources: Loaded ${apiKeys.size} API keys. Selected: ${selectedApiKeyInfo?.displayName}")
     }
 
@@ -160,7 +160,7 @@ private fun setupUI() {
     // 2. Repurposed debug settings button
     binding.debugSettingsBtn.setOnClickListener {
         // This now opens your ORIGINAL developer settings dialog
-        val devSettingsDialog = SettingsDialog(this, getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE), models)
+        val devSettingsDialog = SettingsDialog(this, getSharedPreferences("BWCTransPrefs", MODE_PRIVATE), models)
         devSettingsDialog.setOnDismissListener {
             Log.d(TAG, "Developer SettingsDialog dismissed.")
             loadPreferences()
@@ -200,8 +200,8 @@ private fun setupUI() {
     private fun prepareNewClient() {
         webSocketClient?.disconnect()
         loadPreferences()
-        selectedApiVersionObject = apiVersions.firstOrNull { it.value == getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE).getString("api_version", null) } ?: apiVersions.firstOrNull()
-        selectedApiKeyInfo = apiKeys.firstOrNull { it.value == getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE).getString("api_key", null) } ?: apiKeys.firstOrNull()
+        selectedApiVersionObject = apiVersions.firstOrNull { it.value == getSharedPreferences("BWCTransPrefs", MODE_PRIVATE).getString("api_version", null) } ?: apiVersions.firstOrNull()
+        selectedApiKeyInfo = apiKeys.firstOrNull { it.value == getSharedPreferences("BWCTransPrefs", MODE_PRIVATE).getString("api_key", null) } ?: apiKeys.firstOrNull()
 
         webSocketClient = WebSocketClient(
             context = applicationContext,
@@ -268,7 +268,7 @@ private fun setupUI() {
 
 
     private fun showDebugDialog() {
-        val dialog = SettingsDialog(this, getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE), models)
+        val dialog = SettingsDialog(this, getSharedPreferences("BWCTransPrefs", MODE_PRIVATE), models)
         dialog.setOnDismissListener {
             Log.d(TAG, "SettingsDialog dismissed.")
             loadPreferences()
@@ -289,7 +289,7 @@ private fun setupUI() {
     }
 
     private fun getVadSensitivity(): Int {
-        val sensitivity = getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE).getInt("vad_sensitivity_ms", 800)
+        val sensitivity = getSharedPreferences("BWCTransPrefs", MODE_PRIVATE).getInt("vad_sensitivity_ms", 800)
         Log.d(TAG, "getVadSensitivity: VAD sensitivity is $sensitivity ms.")
         return sensitivity
     }
@@ -316,7 +316,7 @@ private fun setupUI() {
             response.sessionResumptionUpdate?.let {
                 if (it.resumable == true && it.newHandle != null) {
                     sessionHandle = it.newHandle
-                    getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE).edit().putString("session_handle", sessionHandle).apply()
+                    getSharedPreferences("BWCTransPrefs", MODE_PRIVATE).edit().putString("session_handle", sessionHandle).apply()
                     Log.i(TAG, "Session handle updated and saved.")
                 }
             }
@@ -449,7 +449,7 @@ private fun updateUI() {
     }
 
     private fun updateDisplayInfo() {
-        val prefs = getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE)
+        val prefs = getSharedPreferences("BWCTransPrefs", MODE_PRIVATE)
         val currentApiVersion = apiVersions.firstOrNull { it.value == prefs.getString("api_version", null) } ?: apiVersions.firstOrNull()
         val currentApiKey = apiKeys.firstOrNull { it.value == prefs.getString("api_key", null) } ?: apiKeys.firstOrNull()
         val infoText = "Model: $selectedModel | Version: ${currentApiVersion?.displayName ?: "N/A"} | Key: ${currentApiKey?.displayName ?: "N/A"}"
