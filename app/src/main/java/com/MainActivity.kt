@@ -79,10 +79,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        binding = ActivityMainBinding.inflate(layoutInflater)
-        setContentView(binding.root)
-        Log.d(TAG, "onCreate: Activity created.")
+    super.onCreate(savedInstanceState)
+    binding = ActivityMainBinding.inflate(layoutInflater)
+    setContentView(binding.root)
+    Log.d(TAG, "onCreate: Activity created.")
+
 
         loadApiVersionsFromResources()
         loadApiKeysFromResources()
@@ -101,7 +102,7 @@ class MainActivity : AppCompatActivity() {
 
         checkPermissions()
         setupUI()
-        updateDisplayInfo()
+        
     }
 
     private fun loadPreferences() {
@@ -135,24 +136,31 @@ class MainActivity : AppCompatActivity() {
         Log.d(TAG, "loadApiKeysFromResources: Loaded ${apiKeys.size} API keys. Selected: ${selectedApiKeyInfo?.displayName}")
     }
 
-    private fun setupUI() {
-        translationAdapter = TranslationAdapter()
-        binding.transcriptLog.layoutManager = LinearLayoutManager(this)
-        binding.transcriptLog.adapter = translationAdapter
-        binding.debugConnectBtn.setOnClickListener {
-            Log.d(TAG, "Debug Connect button clicked.")
-            connect()
-        }
-        binding.micBtn.setOnClickListener {
-            Log.d(TAG, "Master button clicked.")
-            handleMasterButton()
-        }
-        binding.settingsBtn.setOnClickListener {
-            Log.d(TAG, "Settings/Disconnect button clicked.")
-            handleSettingsDisconnectButton()
-        }
-        updateUI()
-        Log.d(TAG, "setupUI: UI components initialized.")
+private fun setupUI() {
+    // Setup the new Toolbar
+    setSupportActionBar(binding.topAppBar)
+    supportActionBar?.setDisplayHomeAsUpEnabled(true) // Shows back arrow
+    binding.topAppBar.setNavigationOnClickListener {
+        onBackPressed() // Or your custom navigation logic
+    }
+    // Setup RecyclerView
+    translationAdapter = TranslationAdapter()
+    binding.transcriptLog.layoutManager = LinearLayoutManager(this)
+    binding.transcriptLog.adapter = translationAdapter
+
+    // NEW Click Listeners
+    binding.micBtn.setOnClickListener {
+        Log.d(TAG, "Mic button clicked.")
+        handleMasterButton() // Your existing logic for this should still work
+    }
+
+    binding.settingsBtn.setOnClickListener {
+        Log.d(TAG, "Settings icon clicked.")
+        // The logic for the disconnect button is gone, this now ONLY shows settings.
+        showSettingsDialog()
+    }
+       updateUI()
+    Log.d(TAG, "setupUI: New UI components initialized.")
     }
 
     private fun initializeComponentsDependentOnAudio() {
@@ -244,7 +252,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun showSettingsDialog() {
+    private fun showDebugDialog() {
         val dialog = SettingsDialog(this, getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE), models)
         dialog.setOnDismissListener {
             Log.d(TAG, "SettingsDialog dismissed.")
@@ -252,6 +260,14 @@ class MainActivity : AppCompatActivity() {
             updateDisplayInfo()
             if (isSessionActive) {
                 Toast.makeText(this, "Settings saved. Please Disconnect and reconnect to apply.", Toast.LENGTH_LONG).show()
+            }
+        }
+        dialog.show()
+    }
+    
+    private fun showSettingsDialog() {
+        val userSettingsDialog = UserSettingsDialogFragment()
+    userSettingsDialog.show(supportFragmentManager, "UserSettingsDialog")
             }
         }
         dialog.show()
@@ -376,19 +392,23 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun updateUI() {
-        binding.settingsBtn.text = if (isSessionActive) "Disconnect" else "Settings"
-        binding.micBtn.text = when {
-            !isSessionActive -> "Connect"
-            !isServerReady -> "Connecting..."
-            isListening -> "Stop"
-            else -> "Start Listening"
-        }
-        binding.micBtn.isEnabled = (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED)
-        binding.debugConnectBtn.isEnabled = !isSessionActive
-        binding.interimDisplay.visibility = if (isListening) View.VISIBLE else View.GONE
-        Log.d(TAG, "updateUI: UI updated with state - isSessionActive=$isSessionActive, isServerReady=$isServerReady, isListening=$isListening")
+private fun updateUI() {
+    // Control the FloatingActionButton's appearance
+    binding.micBtn.setImageResource(if (isListening) R.drawable.ic_stop else R.drawable.ic_mic) // You'll need ic_stop
+
+    // Update status text at the bottom
+    binding.statusText.text = when {
+        !isSessionActive -> "Status: Disconnected"
+        !isServerReady -> "Status: Connecting..."
+        isListening -> "Status: Listening..."
+        else -> "Status: Ready"
     }
+    
+    binding.infoText.visibility = if (translationAdapter.itemCount == 0) View.VISIBLE else View.GONE
+    
+    binding.micBtn.isEnabled = (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED)
+}
+
 
     private fun updateStatus(message: String) {
         binding.statusText.text = "Status: $message"
