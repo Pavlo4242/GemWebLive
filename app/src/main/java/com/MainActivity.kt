@@ -149,8 +149,9 @@ class MainActivity : AppCompatActivity() {
             userSettingsDialog.show(supportFragmentManager, "UserSettingsDialog")
         }
 
-        binding.debugSettingsBtn.setOnClickListener {
-            val devSettingsDialog = SettingsDialog(this, getSharedPreferences("BWCTransPrefs", MODE_PRIVATE), models)
+         binding.debugSettingsBtn.setOnClickListener {
+            // This now opens your ORIGINAL developer settings dialog
+            val devSettingsDialog = SettingsDialog(this, this, getSharedPreferences("BWCTransPrefs", MODE_PRIVATE), models)
             devSettingsDialog.setOnDismissListener {
                 Log.d(TAG, "Developer SettingsDialog dismissed.")
                 loadPreferences()
@@ -182,6 +183,38 @@ class MainActivity : AppCompatActivity() {
             Log.i(TAG, "AudioHandler initialized.")
         }
         prepareNewClient()
+    }
+
+    fun requestAudioPermission() {
+        Log.i(TAG, "requestAudioPermission: Explicitly requesting audio permission.")
+        requestPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+    }
+
+    override fun onRequestPermission() {
+        requestAudioPermission()
+    }
+
+    override fun onForceConnect() {
+        Log.i(TAG, "onForceConnect: Forcing reconnection.")
+        Toast.makeText(this, "Forcing reconnection...", Toast.LENGTH_SHORT).show()
+        teardownSession()
+        // Add a small delay before connecting to ensure resources are released
+        mainScope.launch {
+            delay(500)
+            connect()
+        }
+    }
+
+    private fun checkPermissions() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+            Log.i(TAG, "checkPermissions: RECORD_AUDIO permission already granted.")
+            initializeComponentsDependentOnAudio()
+        } else {
+            Log.i(TAG, "checkPermissions: Requesting RECORD_AUDIO permission.")
+            // --- MODIFIED: Show a more informative initial Toast ---
+            Toast.makeText(this, "Microphone permission is needed for the translator.", Toast.LENGTH_LONG).show()
+            requestAudioPermission()
+        }
     }
 
     private fun prepareNewClient() {
