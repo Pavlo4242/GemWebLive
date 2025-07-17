@@ -9,9 +9,7 @@
     </string-array>
 
     <string-array name="api_keys"> <item>Language1a:AIzaSyAIrTcT8shPcho-TFRI2tFJdCjl6_FAbO8</item>
-        <item>ImageGen:AIzaSyB0m3u3y0clLfWD7Bz1IpoTzKQaDEqwfrU</item>
-        <item>Tooling:AIzaSyCKfh1rvPHkyxHcNrJylcXjck6wRxmizAc</item>
-        <item>Gem:AIzaSyAfllQeROQdiprgy2T7yAQZuOk92iIDFm8</item>
-        <item>Free:AIzaSyCuhiYfACrSXS6VAXIEmaVp83CAvYRRNT0</item>
+        <item>Rayven:AIzaSyCBnpGnbCKy7gxqMkDkBuCc78Rf40D1auA</item>
+        <item>Lan1a:AIzaSyDsTrGpp8mrr470vQrztyz3SOSnoxdtQJc</item>
     </string-array>
 </resources>
