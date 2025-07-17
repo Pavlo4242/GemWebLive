@@ -10,8 +10,23 @@ import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 
 class UserSettingsDialogFragment : BottomSheetDialogFragment() {
 
+    // --- NEW: Interface for communication ---
+    interface UserSettingsListener {
+        fun onRequestPermission()
+    }
+
     private var _binding: DialogUserSettingsBinding? = null
     private val binding get() = _binding!!
+    private var listener: UserSettingsListener? = null
+
+    override fun onAttach(context: Context) {
+        super.onAttach(context)
+        if (context is UserSettingsListener) {
+            listener = context
+        } else {
+            throw RuntimeException("$context must implement UserSettingsListener")
+        }
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -29,7 +44,6 @@ class UserSettingsDialogFragment : BottomSheetDialogFragment() {
         }
 
         binding.autoPlaybackSwitch.setOnCheckedChangeListener { _, isChecked ->
-            // You can save this setting to SharedPreferences here
             val message = "Auto-playback " + if (isChecked) "ON" else "OFF"
             Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
         }
@@ -38,6 +52,20 @@ class UserSettingsDialogFragment : BottomSheetDialogFragment() {
             Toast.makeText(requireContext(), "Feedback action triggered", Toast.LENGTH_SHORT).show()
             dismiss()
         }
+
+        // --- NEW: Logic for the permission button ---
+        if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            binding.requestPermissionBtn.visibility = View.VISIBLE
+            binding.requestPermissionBtn.setOnClickListener {
+                listener?.onRequestPermission()
+                dismiss()
+            }
+        }
+    }
+
+    override fun onDetach() {
+        super.onDetach()
+        listener = null
     }
 
     override fun onDestroyView() {
