@@ -17,11 +17,15 @@
             android:id="@+id/topAppBar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            app:navigationIcon="@drawable/ic_arrow_back" app:title=" " > <ImageView
+            app:navigationIcon="@drawable/ic_arrow_back"
+            app:title=" ">
+
+            <ImageView
                 android:id="@+id/settingsBtn"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:src="@drawable/ic_settings" android:layout_gravity="end"
+                android:src="@drawable/ic_settings"
+                android:layout_gravity="end"
                 android:padding="12dp"
                 android:contentDescription="Settings"
                 android:background="?attr/selectableItemBackgroundBorderless"
@@ -32,7 +36,8 @@
                 android:id="@+id/historyBtn"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:src="@drawable/ic_history" android:layout_gravity="end"
+                android:src="@drawable/ic_history"
+                android:layout_gravity="end"
                 android:padding="12dp"
                 android:contentDescription="History"
                 android:background="?attr/selectableItemBackgroundBorderless"
@@ -40,9 +45,7 @@
                 android:focusable="true" />
 
         </com.google.android.material.appbar.MaterialToolbar>
-
     </com.google.android.material.appbar.AppBarLayout>
-
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
@@ -66,49 +69,17 @@
             android:layout_height="0dp"
             android:layout_margin="16dp"
             app:layout_constraintTop_toBottomOf="@id/infoText"
-            app:layout_constraintBottom_toTopOf="@id/languageSelectorContainer"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"/>
-
-        <LinearLayout
-            android:id="@+id/languageSelectorContainer"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:layout_marginBottom="24dp"
             app:layout_constraintBottom_toTopOf="@id/micBtn"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent">
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/lang1Btn"
-                style="?attr/materialButtonOutlinedStyle"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="English" />
-
-            <ImageView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:src="@drawable/ic_swap_horiz" android:layout_marginStart="16dp"
-                android:layout_marginEnd="16dp" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/lang2Btn"
-                style="?attr/materialButtonOutlinedStyle"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Thai" />
-
-        </LinearLayout>
+            app:layout_constraintEnd_toEndOf="parent"/>
 
         <com.google.android.material.floatingactionbutton.FloatingActionButton
             android:id="@+id/micBtn"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginBottom="32dp"
-            android:src="@drawable/ic_mic" app:fabSize="large"
+            android:src="@drawable/ic_mic"
+            app:fabSize="large"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent" />
@@ -123,6 +94,14 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent" />
 
-    </androidx.constraintlayout.widget.ConstraintLayout>
+        <Button
+            android:id="@+id/debugSettingsBtn"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Debug Settings"
+            android:layout_margin="16dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"/>
 
+    </androidx.constraintlayout.widget.ConstraintLayout>
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
