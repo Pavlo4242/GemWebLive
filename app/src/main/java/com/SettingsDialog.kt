@@ -1,5 +1,6 @@
 package com.BWCTrans
 
+// --- IMPORTS ---
 import android.app.Dialog
 import android.content.Context
 import android.content.SharedPreferences
@@ -12,6 +13,7 @@ import android.widget.ArrayAdapter
 import android.widget.SeekBar
 import com.BWCTrans.databinding.DialogSettingsBinding
 
+// --- CLASS & INTERFACE ---
 class SettingsDialog(
     private val listener: DevSettingsListener,
     context: Context,
@@ -23,19 +25,20 @@ class SettingsDialog(
         fun onForceConnect()
     }
 
-    private lateinit var binding: DialogSettingsBinding
-
-    private var apiVersionsList: List<ApiVersion> = emptyList()
-    private var apiKeysList: List<ApiKeyInfo> = emptyList()
-
-    private var selectedApiVersion: ApiVersion? = null
-    private var selectedApiKeyInfo: ApiKeyInfo? = null
-    private var selectedModel: String = models.firstOrNull() ?: ""
-
+    // --- COMPANION OBJECT ---
     companion object {
         private const val TAG = "SettingsDialog"
     }
 
+    // --- PROPERTIES ---
+    private lateinit var binding: DialogSettingsBinding
+    private var apiVersionsList: List<ApiVersion> = emptyList()
+    private var apiKeysList: List<ApiKeyInfo> = emptyList()
+    private var selectedApiVersion: ApiVersion? = null
+    private var selectedApiKeyInfo: ApiKeyInfo? = null
+    private var selectedModel: String = models.firstOrNull() ?: ""
+
+    // --- DIALOG LIFECYCLE ---
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = DialogSettingsBinding.inflate(layoutInflater)
@@ -52,6 +55,7 @@ class SettingsDialog(
         setupViews()
     }
 
+    // --- INITIALIZATION & DATA LOADING ---
     private fun loadApiVersionsFromResources() {
         val rawApiVersions = context.resources.getStringArray(R.array.api_versions)
         val parsedList = mutableListOf<ApiVersion>()
@@ -90,71 +94,72 @@ class SettingsDialog(
         selectedApiKeyInfo = parsedList.firstOrNull { it.value == currentApiKeyValue } ?: parsedList.firstOrNull()
     }
 
-private fun setupViews() {
-    val currentVad = prefs.getInt("vad_sensitivity_ms", 800)
-    binding.vadSensitivity.progress = currentVad
-    binding.vadValue.text = "$currentVad ms"
+    // --- UI SETUP & EVENT HANDLERS ---
+    private fun setupViews() {
+        // VAD Sensitivity SeekBar
+        val currentVad = prefs.getInt("vad_sensitivity_ms", 800)
+        binding.vadSensitivity.progress = currentVad
+        binding.vadValue.text = "$currentVad ms"
 
-    binding.vadSensitivity.setOnSeekBarChangeListener(object: SeekBar.OnSeekBarChangeListener {
-        override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-            binding.vadValue.text = "$progress ms"
-        }
-        override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-        override fun onStopTrackingTouch(seekBar: SeekBar?) {}
-    })
-
-    // Model Spinner
-    binding.modelSpinnerSettings.adapter = ArrayAdapter(context, android.R.layout.simple_spinner_item, models)
-    val modelPosition = models.indexOf(selectedModel)
-    if (modelPosition != -1) {
-        binding.modelSpinnerSettings.setSelection(modelPosition)
-    }
-    binding.modelSpinnerSettings.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-        override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-            selectedModel = models[position]
-        }
-        override fun onNothingSelected(parent: AdapterView<*>?) {}
-    }
-
-    // API Version Spinner
-    binding.apiVersionSpinner.adapter = ArrayAdapter(context, android.R.layout.simple_spinner_item, apiVersionsList)
-    selectedApiVersion?.let {
-        val apiVersionPosition = apiVersionsList.indexOf(it)
-        if (apiVersionPosition != -1) binding.apiVersionSpinner.setSelection(apiVersionPosition)
-    }
-
-    // API Key Spinner
-    binding.apiKeySpinner.adapter = ArrayAdapter(context, android.R.layout.simple_spinner_item, apiKeysList)
-    selectedApiKeyInfo?.let {
-        val apiKeyPosition = apiKeysList.indexOf(it)
-        if (apiKeyPosition != -1) binding.apiKeySpinner.setSelection(apiKeyPosition)
-    }
-
-    // --- CORRECTED BUTTON LISTENERS ---
-
-    // Save Button Listener
-    binding.saveSettingsBtn.setOnClickListener {
-        prefs.edit().apply {
-            putInt("vad_sensitivity_ms", binding.vadSensitivity.progress)
-            putString("selected_model", selectedModel)
-
-            if (binding.apiVersionSpinner.selectedItemPosition >= 0) {
-                val selectedApiVersionFromSpinner = apiVersionsList[binding.apiVersionSpinner.selectedItemPosition]
-                putString("api_version", selectedApiVersionFromSpinner.value)
+        binding.vadSensitivity.setOnSeekBarChangeListener(object: SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                binding.vadValue.text = "$progress ms"
             }
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+        })
 
-            if (binding.apiKeySpinner.selectedItemPosition >= 0) {
-                val selectedApiKeyFromSpinner = apiKeysList[binding.apiKeySpinner.selectedItemPosition]
-                putString("api_key", selectedApiKeyFromSpinner.value)
-            }
-            apply()
+        // Model Spinner
+        binding.modelSpinnerSettings.adapter = ArrayAdapter(context, android.R.layout.simple_spinner_item, models)
+        val modelPosition = models.indexOf(selectedModel)
+        if (modelPosition != -1) {
+            binding.modelSpinnerSettings.setSelection(modelPosition)
         }
-        dismiss()
-    }
+        binding.modelSpinnerSettings.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                selectedModel = models[position]
+            }
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
 
-    // Force Connect Button Listener (now at the correct level)
-    binding.forceConnectBtn.setOnClickListener {
-        listener.onForceConnect()
-        dismiss() // Close the dialog
+        // API Version Spinner
+        binding.apiVersionSpinner.adapter = ArrayAdapter(context, android.R.layout.simple_spinner_item, apiVersionsList)
+        selectedApiVersion?.let {
+            val apiVersionPosition = apiVersionsList.indexOf(it)
+            if (apiVersionPosition != -1) binding.apiVersionSpinner.setSelection(apiVersionPosition)
+        }
+
+        // API Key Spinner
+        binding.apiKeySpinner.adapter = ArrayAdapter(context, android.R.layout.simple_spinner_item, apiKeysList)
+        selectedApiKeyInfo?.let {
+            val apiKeyPosition = apiKeysList.indexOf(it)
+            if (apiKeyPosition != -1) binding.apiKeySpinner.setSelection(apiKeyPosition)
+        }
+
+        // Save Button Listener
+        binding.saveSettingsBtn.setOnClickListener {
+            prefs.edit().apply {
+                putInt("vad_sensitivity_ms", binding.vadSensitivity.progress)
+                putString("selected_model", selectedModel)
+
+                if (binding.apiVersionSpinner.selectedItemPosition >= 0) {
+                    val selectedApiVersionFromSpinner = apiVersionsList[binding.apiVersionSpinner.selectedItemPosition]
+                    putString("api_version", selectedApiVersionFromSpinner.value)
+                }
+
+                if (binding.apiKeySpinner.selectedItemPosition >= 0) {
+                    val selectedApiKeyFromSpinner = apiKeysList[binding.apiKeySpinner.selectedItemPosition]
+                    putString("api_key", selectedApiKeyFromSpinner.value)
+                }
+                apply()
+            }
+            dismiss()
+        }
+
+        // Force Connect Button Listener
+        binding.forceConnectBtn.setOnClickListener {
+            listener.onForceConnect()
+            dismiss() // Close the dialog
+        }
     }
 }
